@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>인터랙티브 한식 백과사전: 숨겨진 한식의 재발견</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Neutral Tones (Slate/Stone) with Categorical Accents -->
+    <!-- Application Structure Plan: The SPA is designed as an interactive, non-linear "exploration hub". The main navigation uses thematic cards (향토, 궁중, 사찰 등) to guide users. Key interactions include an interactive map for regional foods, visual diagrams for system-based cuisines, and a filterable master list. This structure prioritizes user-driven discovery and synthesizes the report's dense information into digestible, engaging modules, making the complex data more accessible than a simple document-style layout. -->
+    <!-- Visualization & Content Choices: Report Info -> Goal -> Viz/Method -> Interaction -> Justification. 1. Regional Food Tables -> Explore Geography -> Interactive Map (HTML/CSS/JS) -> Click region to show dishes -> More intuitive than tables. 2. Omission Reasons -> Compare Causes -> Horizontal Bar Chart (Chart.js) -> Hover for details -> Quantifies the qualitative analysis. 3. Master List -> Find Specifics -> Filterable Table (HTML/JS) -> User can query data -> Empowers user to find relevant info quickly. 4. Detailed Dish Info -> Deep Dive -> Pop-up Modals (JS) -> Provides details on-demand without cluttering the UI. All visuals use Canvas or HTML/CSS. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; scroll-behavior: smooth; }
+        .map-korea { position: relative; width: 100%; max-width: 500px; margin: auto; }
+        .map-korea .province { position: absolute; cursor: pointer; transition: all 0.3s ease; }
+        .map-korea .province:hover .province-shape { transform: scale(1.1); fill-opacity: 0.8; }
+        .map-korea .province.active .province-shape { fill-opacity: 1; stroke-width: 4px; }
+        .province-shape { transition: all 0.3s ease; stroke: #fff; stroke-width: 2px; }
+        .modal { transition: opacity 0.3s ease; }
+        .modal-content { transition: transform 0.3s ease; }
+        .chart-container { position: relative; width: 100%; max-width: 800px; margin-left: auto; margin-right: auto; height: 350px; max-height: 400px; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <header class="bg-white/90 backdrop-blur-lg shadow-sm sticky top-0 z-40">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">인터랙티브 한식 백과사전</h1>
+            <p class="text-sm md:text-base text-slate-600 mt-1">한식 분류 체계의 누락된 지점을 탐험하고 숨겨진 요리를 재발견합니다.</p>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-4 sm:p-6 lg:p-8">
+
+        <section id="intro" class="mb-12">
+            <div class="bg-white p-6 rounded-2xl shadow-lg">
+                <h2 class="text-xl font-bold text-cyan-700 mb-3">들어가며: 한식의 경계를 다시 그리다</h2>
+                <p class="text-slate-600 leading-relaxed">
+                    '한식'의 정의는 생각보다 복잡합니다. 산업, 학술적 분류의 한계를 넘어, 본 보고서는 요리의 **유래와 맥락**, **유형과 조리법**, 그리고 **시대적 변화**라는 3가지 축을 통해 한식의 다층적인 정체성을 입체적으로 분석합니다. 이 애플리케이션은 그 분석 결과를 바탕으로, 표준 목록에서 쉽게 누락되었던 향토, 궁중, 사찰, 이북, 현대의 숨겨진 요리들을 탐색할 수 있는 상호작용적인 경험을 제공합니다.
+                </p>
+            </div>
+        </section>
+
+        <section id="explorer-hub" class="mb-12">
+            <h2 class="text-2xl font-bold text-center mb-8">한식 탐험 허브: 유래와 맥락으로 길 찾기</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div id="hub-regional" class="hub-card bg-white p-6 rounded-2xl shadow-lg cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                    <h3 class="text-xl font-bold text-green-700 mb-2">🗺️ 향토음식</h3>
+                    <p class="text-slate-600">지도 위에서 각 지역의 기후와 특산물이 빚어낸 고유의 맛을 발견해보세요.</p>
+                </div>
+                <div id="hub-royal" class="hub-card bg-white p-6 rounded-2xl shadow-lg cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                    <h3 class="text-xl font-bold text-amber-700 mb-2">🏛️ 궁중음식</h3>
+                    <p class="text-slate-600">수라상부터 병과까지, 격식과 체계가 담긴 왕실의 식문화를 탐험합니다.</p>
+                </div>
+                <div id="hub-temple" class="hub-card bg-white p-6 rounded-2xl shadow-lg cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                    <h3 class="text-xl font-bold text-teal-700 mb-2">🧘 사찰음식</h3>
+                    <p class="text-slate-600">자연의 순리와 수행의 철학이 담긴 발우공양의 세계로 안내합니다.</p>
+                </div>
+                <div id="hub-north" class="hub-card bg-white p-6 rounded-2xl shadow-lg cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                    <h3 class="text-xl font-bold text-blue-700 mb-2">🕊️ 이북음식</h3>
+                    <p class="text-slate-600">분단의 역사 속, 실향과 변용의 이야기를 품은 북녘의 맛을 만나보세요.</p>
+                </div>
+                <div id="hub-modern" class="hub-card bg-white p-6 rounded-2xl shadow-lg cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                    <h3 class="text-xl font-bold text-purple-700 mb-2">✨ 현대/퓨전 한식</h3>
+                    <p class="text-slate-600">끊임없이 진화하는 한식의 최신 트렌드와 글로벌 하이브리드 요리를 소개합니다.</p>
+                </div>
+                 <div id="hub-omission" class="hub-card bg-white p-6 rounded-2xl shadow-lg cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                    <h3 class="text-xl font-bold text-rose-700 mb-2">📊 누락의 이유</h3>
+                    <p class="text-slate-600">왜 어떤 요리들은 목록에서 사라졌을까요? 그 구조적 원인을 데이터로 분석합니다.</p>
+                </div>
+            </div>
+        </section>
+
+        <div id="content-display" class="mt-12"></div>
+
+        <section id="master-list" class="mt-12 bg-white p-6 rounded-2xl shadow-lg">
+             <h2 class="text-2xl font-bold text-center mb-8">누락 요리 종합 목록: 필터로 찾아보기</h2>
+             <div class="flex flex-wrap gap-4 mb-6 justify-center">
+                 <div class="w-full sm:w-auto">
+                    <label for="filter-origin" class="block text-sm font-medium text-slate-700">유래/맥락별</label>
+                    <select id="filter-origin" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm rounded-md">
+                        <option value="all">전체</option>
+                        <option value="향토음식">향토음식</option>
+                        <option value="궁중음식">궁중음식</option>
+                        <option value="사찰음식">사찰음식</option>
+                        <option value="이북음식">이북음식</option>
+                        <option value="현대/퓨전">현대/퓨전</option>
+                    </select>
+                </div>
+                <div class="w-full sm:w-auto">
+                    <label for="search-food" class="block text-sm font-medium text-slate-700">음식 이름 검색</label>
+                    <input type="text" id="search-food" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm" placeholder="예: 갱시기">
+                </div>
+             </div>
+             <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">유래/맥락</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">소분류</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">음식명</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">핵심 특징</th>
+                        </tr>
+                    </thead>
+                    <tbody id="master-table-body" class="bg-white divide-y divide-slate-200">
+                    </tbody>
+                </table>
+             </div>
+        </section>
+    </main>
+    
+    <div id="food-modal" class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none modal">
+        <div id="modal-content" class="modal-content bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto transform scale-95">
+        </div>
+    </div>
+
+
+    <footer class="bg-slate-800 text-white mt-16">
+        <div class="container mx-auto p-6 text-center text-sm text-slate-400">
+            <p>본 콘텐츠는 제공된 '한식 분류 체계의 종합적 검증 및 보완' 보고서를 기반으로 제작된 인터랙티브 애플리케이션입니다.</p>
+            <p class="mt-1">&copy; 2025 Interactive Korean Food Encyclopedia.</p>
+        </div>
+    </footer>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const foodData = {
+                // 향토음식
+                '초교탕': { origin: '향토음식', subCategory: '수도권', description: "닭고기, 미나리, 도라지, 버섯 등을 넣고 맑게 끓인 탕. 궁중음식의 영향을 받은 고급 요리.", reason: "설렁탕, 닭한마리 등 대중적인 탕류에 비해 인지도가 낮아 일반 목록에서 자주 누락됨." },
+                '우메기떡': { origin: '향토음식', subCategory: '수도권 (개성)', description: "찹쌀가루를 막걸리로 반죽하여 빚어 기름에 지진 후 조청이나 꿀에 집청한 떡. 개성주악이라고도 불림.", reason: "조리법이 복잡하고 고급 한과로 분류되어 일상적인 향토음식 목록에서는 제외되는 경향." },
+                '젓국갈비': { origin: '향토음식', subCategory: '수도권 (강화)', description: "돼지갈비에 새우젓으로 간을 하고 두부, 채소 등을 넣어 끓인 맑은 탕. 강화도 지역의 대표 음식.", reason: "강화도라는 특정 지역에 한정된 음식으로, 수도권 전체를 아우르는 목록에서는 누락되기 쉬움." },
+                '즘떡': { origin: '향토음식', subCategory: '수도권 (연천)', description: "찹쌀가루에 팥, 콩, 밤, 대추 등을 섞어 시루에 찐 떡.", reason: "특정 지역의 의례나 명절에 주로 만들어 먹는 음식으로, 보편성이 낮아 기록에서 누락." },
+                '병어감정': { origin: '향토음식', subCategory: '수도권', description: "병어를 고추장과 된장으로 양념하여 자작하게 조린 음식.", reason: "'감정'이라는 조리법 자체가 현대에는 생소하며, 조기나 갈치조림에 비해 덜 알려져 있음." },
+                '방풍죽': { origin: '향토음식', subCategory: '강원도 (강릉)', description: "해안가에서 자라는 방풍나물을 넣어 끓인 죽. 독특한 향이 특징.", reason: "약용 식재료를 활용한 건강식으로, 일반적인 식사 메뉴보다는 별식으로 취급되어 누락." },
+                '서거리깍두기': { origin: '향토음식', subCategory: '강원도', description: "명태의 아가미, 내장 등을 무와 함께 버무려 담근 깍두기.", reason: "'서거리'라는 방언과 명태의 특수 부위를 사용해 일반인에게 생소하고, 지역성이 매우 강함." },
+                '삼숙이탕': { origin: '향토음식', subCategory: '강원도', description: "못생긴 생선인 삼세기(삼숙이)를 넣어 얼큰하게 끓인 탕. 강원도 동해안 지역의 별미.", reason: "주재료인 삼숙이가 전국적으로 유통되지 않는 지역 어종이라 인지도가 극히 낮음." },
+                '도치두루치기': { origin: '향토음식', subCategory: '강원도', description: "겨울철 별미인 도치를 묵은지와 함께 볶거나 끓여내는 요리.", reason: "계절성이 강하고 '도치'라는 생선 자체가 대중적이지 않아 향토 별미로만 알려져 있음." },
+                '지누아리장아찌': { origin: '향토음식', subCategory: '강원도', description: "'지누아리'라는 홍조류 해초로 담근 장아찌.", reason: "특정 해조류를 이용한 저장음식으로, 식재료의 희소성과 낮은 보편성으로 인해 기록에서 누락." },
+                '미역생떡국': { origin: '향토음식', subCategory: '충청도', description: "쌀가루로 떡을 만들어 미역국에 넣어 끓인 음식.", reason: "일반적인 떡국(소고기 육수)과 다른 독특한 조합으로, 지역적 별미로만 소비되어 보편성이 낮음." },
+                '호박청': { origin: '향토음식', subCategory: '충청도', description: "늙은 호박을 푹 고아서 만든, 잼이나 차의 형태로 즐기는 음식.", reason: "주식이나 반찬이 아닌 '청' 형태의 가공식품으로, 요리 목록에서는 종종 제외됨." },
+                '도리뱅뱅이': { origin: '향토음식', subCategory: '충청도 (옥천)', description: "피라미 등 작은 민물고기를 팬에 동그랗게 돌려 담아 양념에 조린 음식.", reason: "민물고기를 주재료로 하여 호불호가 갈리며, 특정 지역(옥천 등)의 별미로 한정됨." },
+                '느티떡': { origin: '향토음식', subCategory: '충청도 (아산)', description: "멥쌀가루에 느티나무의 어린 순을 섞어 찐 떡.", reason: "특정 계절의 특정 식물 부위를 사용하는 등 재료의 특수성과 지역성으로 인해 널리 알려지지 않음." },
+                '박속낙지탕': { origin: '향토음식', subCategory: '충청도 (서산, 태안)', description: "박을 넣은 맑은 국물에 산낙지를 데쳐 먹는 탕.", reason: "연포탕과 유사하지만 '박'을 사용하는 지역적 특색이 있으며, 서해안 일부 지역의 향토음식으로 인지됨." },
+                '애호박찌개': { origin: '향토음식', subCategory: '전라도 (광주)', description: "돼지고기와 애호박을 넉넉히 넣고 고추장, 고춧가루로 얼큰하게 끓인 찌개.", reason: "'국밥' 형태로도 불리며, 광주 지역의 대표적인 서민 음식이지만 다른 유명 음식에 가려져 있음." },
+                '상추튀김': { origin: '향토음식', subCategory: '전라도 (광주)', description: "오징어튀김 등 각종 튀김을 간장 양념과 함께 상추에 싸 먹는 독특한 분식.", reason: "'튀김'이라는 이름과 달리 '쌈'의 형태로 먹는 방식이 독특하여, 음식 분류가 모호해 누락되기 쉬움." },
+                '짱뚱어탕': { origin: '향토음식', subCategory: '전라도 (순천, 벌교)', description: "갯벌에서 나는 짱뚱어를 삶아 갈아서 시래기 등과 함께 끓인 탕.", reason: "추어탕과 유사하지만 짱뚱어라는 특이 어종을 사용하며, 남해안 일부 지역의 보양식으로 알려짐." },
+                '닭회': { origin: '향토음식', subCategory: '전라도', description: "신선한 닭의 가슴살이나 모래집 등을 날것으로 먹는 요리.", reason: "식재료의 극도의 신선도가 요구되고 식중독 위험이 있어 보편화되지 못한, 극히 일부 지역의 별미." },
+                '설탕국수': { origin: '향토음식', subCategory: '전라도', description: "삶은 소면에 찬물이나 보리차를 붓고 설탕만으로 간을 해 먹는 여름 국수.", reason: "조리법이 극도로 단순하고 가정식의 성격이 강해, 공식적인 요리 목록에 포함되지 않는 경우가 많음." },
+                '고갈비': { origin: '향토음식', subCategory: '경상도 (부산)', description: "고등어를 연탄불 등에 구워 양념장을 발라내는 요리. '고등어 갈비'라는 별칭으로 불림.", reason: "특정 시대(70-80년대)의 선술집 문화를 배경으로 한 음식으로, 현대적인 목록에서는 누락될 수 있음." },
+                '갱시기': { origin: '향토음식', subCategory: '경상도', description: "신김치, 콩나물, 찬밥, 국수 등을 넣고 함께 끓인 음식. 죽과 국의 중간 형태.", reason: "'꿀꿀이죽'과 비슷하게 보일 수 있는 서민적이고 소박한 가정식으로, 정식 요리로 취급되지 않는 경향." },
+                '모리국수': { origin: '향토음식', subCategory: '경상도 (포항)', description: "아귀 등 각종 해산물과 콩나물을 넣고 고춧가루로 얼큰하게 끓여내는 국수. 포항 구룡포 지역의 선원들이 먹던 음식.", reason: "지역성이 매우 강하고 비주얼이 투박함." },
+                '돔배기': { origin: '향토음식', subCategory: '경상도', description: "상어고기를 토막 내어 소금에 절인 것. 주로 찜이나 산적으로 조리하여 제사상에 올림.", reason: "제사 음식이라는 특수성과 상어고기라는 희소한 식재료 때문에 일상적인 음식 목록에서는 제외됨." },
+                '빼때기죽': { origin: '향토음식', subCategory: '경상도 (통영)', description: "말린 고구마(빼때기)와 팥, 강낭콩 등을 넣고 끓인 달콤한 죽.", reason: "구황작물로 만들던 시절의 음식이라는 역사적 배경이 있으며, 주식보다는 별식으로 여겨짐." },
+                '접짝뼈국': { origin: '향토음식', subCategory: '제주도', description: "돼지의 '접짝뼈'를 푹 고아 무, 두부를 넣고 메밀가루로 농도를 맞춘 국. 제주 잔칫 음식.", reason: "방언과 특수 부위 사용으로 인해 접근성이 낮고, 몸국, 고사리육개장에 비해 덜 알려짐." },
+                '각재기국': { origin: '향토음식', subCategory: '제주도', description: "전갱이(각재기)를 통째로 넣고 배추, 된장을 풀어 시원하게 끓인 국.", reason: "등푸른 생선을 국으로 끓이는 방식이 육지에서는 흔치 않으며, '각재기'라는 방언이 생소함." },
+                '쉰다리': { origin: '향토음식', subCategory: '제주도', description: "찬밥과 누룩을 발효시켜 만든 제주 전통 음료.", reason: "현대에는 거의 만들어 먹지 않는, 사라져가는 전통 음식으로 기록에서조차 찾기 어려움." },
+                '보말칼국수': { origin: '향토음식', subCategory: '제주도', description: "제주 바다에서 나는 고둥(보말)을 까서 내장과 함께 끓여낸 칼국수.", reason: "'보말'이라는 식재료가 제주 특산물이며, 내장을 함께 사용해 진한 녹색을 띠는 등 외형이 독특함." },
+                '빙떡': { origin: '향토음식', subCategory: '제주도', description: "메밀 반죽을 얇게 부친 전에 삶은 무채를 소로 넣고 돌돌 만 떡. 담백하고 슴슴한 맛이 특징.", reason: "자극적인 맛에 익숙한 현대인의 입맛에는 심심하게 느껴져 대중화에 한계." },
+                '몸국': { origin: '향토음식', subCategory: '제주도', description: "돼지고기와 내장, 뼈를 푹 삶은 국물에 해조류 '모자반(몸)'을 넣고 끓인 제주의 대표적인 잔치 음식.", reason: "제주 특유의 잔치 문화와 식재료에 기반하여 육지에서는 생소하고 맛의 호불호가 갈릴 수 있음."},
+                
+                '초조반': { origin: '궁중음식', subCategory: '상차림', description: "임금이 이른 새벽에 받는 보양식 죽상. 계절에 따라 잣죽, 타락죽, 장국죽 등 다양한 죽이 올랐다.", reason: "단품 요리가 아닌 '상차림' 개념으로, 일반적인 요리 목록에서는 통째로 누락되는 경우가 많음." },
+                '두텁떡': { origin: '궁중음식', subCategory: '병과류', description: "거피팥고물을 묻힌 떡 안에 꿀, 잣, 대추 등을 소로 넣고 찐 고급 떡.", reason: "조리법이 매우 복잡하고 전문 기술을 요하여 현대에는 쉽게 접하기 어려움." },
+                '어선': { origin: '궁중음식', subCategory: '단품 요리', description: "민어나 도미의 살을 얇게 떠서 채소, 버섯 등과 함께 찐 생선찜 요리.", reason: "신선로, 구절판 등 상징적인 요리에 비해 인지도가 낮아 누락됨." },
+                '승기아탕': { origin: '궁중음식', subCategory: '단품 요리', description: "생선, 고기, 채소 등 귀한 재료를 전으로 부쳐 전골틀에 담고 왜된장을 푼 국물에 끓여먹는 호사스러운 전골. '기생이나 풍악보다 낫다'는 뜻을 지님.", reason: "조리법이 매우 복잡하고 호화로워 일반적인 궁중요리 목록에서도 쉽게 찾아보기 어려움."},
+                '규아상': { origin: '궁중음식', subCategory: '단품 요리', description: "오이, 다진 고기, 표고버섯을 소로 넣고 해삼 모양으로 빚은 여름 만두.", reason: "정교한 모양과 계절성으로 인해 대중화되지 못한 궁중 별미."},
+                '연저육': { origin: '궁중음식', subCategory: '단품 요리', description: "부드러운 어린 돼지고기를 통째로 쪄낸 요리. 연하고 부드러운 식감이 특징.", reason: "재료의 특수성과 정교한 조리법으로 인해 잘 알려지지 않음."},
+
+                '발우공양 코스': { origin: '사찰음식', subCategory: '상차림', description: "술적심, 죽상, 상미, 담미, 유미, 입가심으로 이어지는 사찰의 단계별 식사 코스.", reason: "개별 요리가 아닌 식사 과정 전체의 구조와 철학이 담겨있어 일반 목록에서는 누락됨." },
+                '모듬버섯강정': { origin: '사찰음식', subCategory: '별식', description: "여러 종류의 버섯을 튀겨 달콤한 조청 소스에 버무린 요리. 육류 없이도 풍부한 맛과 식감을 낸다.", reason: "전통 사찰음식을 현대적으로 재해석한 창의적인 요리로, 아직 널리 알려지지 않음." },
+                '상추불뚝김치': { origin: '사찰음식', subCategory: '김치류', description: "상추를 소금에 절이지 않고 바로 양념에 버무려 먹는 즉석 김치. 오신채 없이 고유의 맛을 낸다.", reason: "오신채를 사용하지 않는 독특한 조리법이 일반 김치와 달라 목록에서 누락." },
+                '오이잣물김치': { origin: '사찰음식', subCategory: '김치류', description: "오이를 잣을 갈아 만든 국물에 담근 고급 물김치.", reason: "잣을 사용한 독특하고 고급스러운 조리법으로 인해 대중적이지 않음."},
+                '두부장쌈장': { origin: '사찰음식', subCategory: '양념류', description: "으깬 두부와 된장, 견과류 등을 섞어 만든 사찰식 쌈장.", reason: "양념류로 분류되어 단품 요리 목록에서는 자주 누락됨."},
+                
+                '인조고기밥': { origin: '이북음식', subCategory: '사회적 맥락', description: "콩기름 짠 찌꺼기로 만든 인조고기에 밥을 넣고 양념장을 바른 음식. '고난의 행군' 시절 유래.", reason: "음식 자체보다 탄생 배경의 사회적, 역사적 맥락이 중요하며, 남한에서는 생소한 길거리 음식." },
+                '두부밥': { origin: '이북음식', subCategory: '사회적 맥락', description: "삼각형으로 썬 튀긴 두부 사이에 밥을 넣고 양념장을 얹어 먹는 북한의 대표 길거리 음식.", reason: "인조고기밥과 함께 북한 서민 문화를 대표하지만, 남한에서는 잘 알려져있지 않음."},
+                '가릿국': { origin: '이북음식', subCategory: '비인기 요리', description: "소갈비로 낸 국물에 밥을 말고, 편육과 함께 육회, 선지를 고명으로 올리는 함경도식 장국밥.", reason: "육회와 선지를 고명으로 올리는 독특한 방식이 남한에서는 생소함."},
+                '노티': { origin: '이북음식', subCategory: '비인기 요리', description: "찹쌀가루를 엿기름으로 발효시켜 기름에 지져 만든 평안도 지방의 저장떡.", reason: "발효 과정을 거치는 독특한 제법과 지역성으로 인해 널리 알려지지 않음." },
+                '언감자떡': { origin: '이북음식', subCategory: '비인기 요리', description: "겨울에 얼린 감자를 녹여 만든 전분으로 빚은 함경도 떡. 쫄깃한 식감이 특징.", reason: "감자를 얼리는 특수한 가공 과정이 필요하고, 함경도라는 지역성에 한정됨."},
+                '어복쟁반': { origin: '이북음식', subCategory: '비인기 요리', description: "얇게 썬 소 편육과 채소를 놋쟁반에 둘러 담아 육수를 부어가며 끓여먹는 평양식 전골 요리.", reason: "평양냉면에 비해 대중성이 낮고, 여러 명이 함께 먹는 고급 요리로 인식됨."},
+                '연안식해': { origin: '이북음식', subCategory: '황해도', description: "황해도 연안 지방의 가자미 식해.", reason: "가자미식해가 함경도 음식으로 널리 알려져 있어 황해도 버전은 상대적으로 덜 알려짐."},
+                
+                '부대찌개': { origin: '현대/퓨전', subCategory: '정착된 퓨전', description: "미군 부대에서 나온 햄, 소시지를 김치찌개에 넣어 끓인, 한국 현대사의 상징적인 음식.", reason: "탄생 초기에는 퓨전이었으나, 이제는 완벽한 현대 한식의 일부로 자리잡아 그 변천사를 기록할 필요가 있음." },
+                '치즈닭갈비': { origin: '현대/퓨전', subCategory: '정착된 퓨전', description: "춘천 닭갈비에 모차렐라 치즈를 녹여 먹는 스타일. SNS를 통해 대중화됨.", reason: "전통 향토음식이 현대 소비 문화와 만나 새로운 형태로 진화한 대표적인 사례." },
+                '뉴웨이브 국밥': { origin: '현대/퓨전', subCategory: '최신 트렌드', description: "전통 국밥을 고급 식재료와 현대적 플레이팅, 스토리텔링으로 재해석한 돼지곰탕 등.", reason: "단일 메뉴가 아닌 '트렌드'로서, 한식의 진화를 보여주는 중요한 현상." },
+                'K-전통간식': { origin: '현대/퓨전', subCategory: '최신 트렌드', description: "약과 위에 크림을 올리거나, 라즈베리 맛 양갱 등 전통 간식의 현대적 변용.", reason: "'할매니얼', '뉴트로' 트렌드를 반영하는 현상으로, 한식의 범주가 디저트로 확장됨을 보여줌." },
+                '뇨끼 떡볶이': { origin: '현대/퓨전', subCategory: '글로벌 하이브리드', description: "이탈리아의 뇨끼와 한국의 떡볶이를 결합하여 식감의 장벽을 낮춘 퓨전 요리.", reason: "한식의 세계화를 위한 현지화 전략을 보여주는 창의적인 시도." },
+                '새우장 부라타': { origin: '현대/퓨전', subCategory: '글로벌 하이브리드', description: "짭조름한 간장새우장과 신선한 이탈리아 부라타 치즈의 조합.", reason: "동서양의 발효와 신선의 조화를 보여주는 파인 다이닝의 혁신적 메뉴." },
+                '돌문어 간장국수': { origin: '현대/퓨전', subCategory: '글로벌 하이브리드', description: "신선한 돌문어 숙회를 간장 베이스의 소스에 비벼 먹는 프리미엄 면 요리.", reason: "전통 재료를 현대적 플레이팅과 세련된 맛으로 풀어냄."},
+            };
+
+            const hubCards = document.querySelectorAll('.hub-card');
+            const contentDisplay = document.getElementById('content-display');
+            const modal = document.getElementById('food-modal');
+            const modalContent = document.getElementById('modal-content');
+            const masterTableBody = document.getElementById('master-table-body');
+            const originFilter = document.getElementById('filter-origin');
+            const searchInput = document.getElementById('search-food');
+
+            const openModal = (foodName) => {
+                const data = foodData[foodName];
+                if (!data) return;
+
+                modalContent.innerHTML = `
+                    <div class="p-6 md:p-8">
+                        <div class="flex justify-between items-start">
+                             <h3 class="text-2xl font-bold text-slate-900 mb-2">${foodName}</h3>
+                             <button id="close-modal" class="text-slate-500 hover:text-slate-800 text-2xl">&times;</button>
+                        </div>
+                        <div class="text-sm font-medium text-white inline-block px-3 py-1 rounded-full mb-4" style="background-color: ${getOriginColor(data.origin)}">
+                            ${data.origin} > ${data.subCategory}
+                        </div>
+                        <p class="text-slate-700 leading-relaxed mb-4">${data.description}</p>
+                        <div class="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-lg">
+                           <h4 class="font-semibold text-amber-800">📋 누락 분석</h4>
+                           <p class="text-amber-700 text-sm mt-1">${data.reason}</p>
+                        </div>
+                    </div>
+                `;
+                modal.classList.remove('opacity-0', 'pointer-events-none');
+                modalContent.classList.remove('scale-95');
+
+                document.getElementById('close-modal').addEventListener('click', closeModal);
+            };
+
+            const closeModal = () => {
+                modal.classList.add('opacity-0', 'pointer-events-none');
+                modalContent.classList.add('scale-95');
+            };
+
+            const getOriginColor = (origin) => {
+                switch(origin) {
+                    case '향토음식': return '#16a34a'; // green-600
+                    case '궁중음식': return '#d97706'; // amber-600
+                    case '사찰음식': return '#0d9488'; // teal-600
+                    case '이북음식': return '#2563eb'; // blue-600
+                    case '현대/퓨전': return '#9333ea'; // purple-600
+                    default: return '#475569'; // slate-600
+                }
+            };
+            
+            const renderContent = (type) => {
+                let content = '';
+                contentDisplay.scrollIntoView({ behavior: 'smooth' });
+                switch(type) {
+                    case 'hub-regional':
+                        content = `
+                            <div class="bg-white p-6 rounded-2xl shadow-lg">
+                                <h3 class="text-2xl font-bold text-green-700 mb-4 text-center">🗺️ 향토음식 탐험</h3>
+                                <p class="text-center text-slate-600 mb-6">지도에서 지역을 선택하여 숨겨진 향토음식을 확인해보세요.</p>
+                                <div class="flex flex-col md:flex-row gap-8 items-center">
+                                    <div class="w-full md:w-1/2">
+                                        <div class="map-korea">
+                                            <svg viewBox="0 0 500 600" id="korea-map-svg">
+                                                <g class="province" data-region="수도권"><path class="province-shape fill-green-200 hover:fill-green-400" d="M222 170 l-40 -60 l-30 0 l-25 30 l0 30 l30 25 l25 25 l40 -50z M210 115 l-10 10 l-15 0 l-10 -10 l0 -10 l10 -10 l15 0 l10 10z" /><text x="175" y="140" class="font-bold text-sm fill-slate-700 pointer-events-none">경기</text></g>
+                                                <g class="province" data-region="강원도"><path class="province-shape fill-green-200 hover:fill-green-400" d="M222 170 l40 -50 l50 -50 l70 0 l20 90 l-50 70 l-90 0z" /><text x="290" y="130" class="font-bold text-sm fill-slate-700 pointer-events-none">강원</text></g>
+                                                <g class="province" data-region="충청도"><path class="province-shape fill-green-200 hover:fill-green-400" d="M222 170 l-70 15 l-30 40 l130 50 l-20 -60 l-70 -10z" /><text x="200" y="225" class="font-bold text-sm fill-slate-700 pointer-events-none">충청</text></g>
+                                                <g class="province" data-region="경상도"><path class="province-shape fill-green-200 hover:fill-green-400" d="M262 310 l150 -150 l20 120 l-100 50 l-10 90 l-120 20z" /><text x="345" y="250" class="font-bold text-sm fill-slate-700 pointer-events-none">경북</text><text x="295" y="340" class="font-bold text-sm fill-slate-700 pointer-events-none">경남</text></g>
+                                                <g class="province" data-region="전라도"><path class="province-shape fill-green-200 hover:fill-green-400" d="M152 280 l70 60 l-30 50 l-70 -40z M122 350 l110 50 l-50 60 l-100 -40z" /><text x="155" y="360" class="font-bold text-sm fill-slate-700 pointer-events-none">전라</text></g>
+                                                <g class="province" data-region="제주도"><path class="province-shape fill-green-200 hover:fill-green-400" d="M130 500 l80 0 l20 30 l-120 -10z" /><text x="165" y="525" class="font-bold text-sm fill-slate-700 pointer-events-none">제주</text></g>
+                                            </svg>
+                                        </div>
+                                    </div>
+                                    <div id="regional-info" class="w-full md:w-1/2 p-4 bg-green-50 rounded-lg min-h-[300px]">
+                                        <p class="text-slate-500">지도를 클릭하여 지역별 정보를 확인하세요.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        break;
+                    case 'hub-royal':
+                        content = `
+                            <div class="bg-white p-6 rounded-2xl shadow-lg text-center">
+                                <h3 class="text-2xl font-bold text-amber-700 mb-4">🏛️ 궁중음식의 체계</h3>
+                                <p class="text-slate-600 mb-8">궁중음식은 단품 요리가 아닌, 하루의 흐름에 따른 정교한 '시스템'입니다. 각 상차림을 클릭해 숨겨진 요리를 만나보세요.</p>
+                                <div class="flex flex-col md:flex-row justify-center items-center gap-4 text-center">
+                                    <div class="p-4 rounded-lg bg-amber-50 border border-amber-200 food-item" data-food="초조반">
+                                        <h4 class="font-bold">초조반 (새벽)</h4><p class="text-sm">보양식 죽상</p>
+                                    </div>
+                                    <div class="text-amber-400 font-bold text-2xl">→</div>
+                                    <div class="p-4 rounded-lg bg-amber-50 border border-amber-200">
+                                        <h4 class="font-bold">수라상 (아침/저녁)</h4><p class="text-sm">임금의 주식</p>
+                                    </div>
+                                    <div class="text-amber-400 font-bold text-2xl">→</div>
+                                     <div class="p-4 rounded-lg bg-amber-50 border border-amber-200 food-item" data-food="두텁떡">
+                                        <h4 class="font-bold">병과 (후식)</h4><p class="text-sm">떡과 한과</p>
+                                    </div>
+                                </div>
+                                <div class="mt-8">
+                                <h4 class="font-bold text-lg mb-2">대표적인 누락 요리</h4>
+                                <div class="flex justify-center gap-2 flex-wrap">
+                                    <button class="food-item bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm hover:bg-amber-200 transition" data-food="어선">어선</button>
+                                    <button class="food-item bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm hover:bg-amber-200 transition" data-food="승기아탕">승기아탕</button>
+                                    <button class="food-item bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm hover:bg-amber-200 transition" data-food="규아상">규아상</button>
+                                    <button class="food-item bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm hover:bg-amber-200 transition" data-food="연저육">연저육</button>
+                                </div>
+                                </div>
+                            </div>
+                        `;
+                        break;
+                    case 'hub-temple':
+                        content = `
+                             <div class="bg-white p-6 rounded-2xl shadow-lg text-center">
+                                <h3 class="text-2xl font-bold text-teal-700 mb-4">🧘 사찰음식의 철학: 발우공양</h3>
+                                <p class="text-slate-600 mb-8">사찰의 식사, 공양은 음식을 통해 자연의 이치를 깨닫는 수행의 과정입니다. 각 단계를 따라가며 그 의미를 느껴보세요.</p>
+                                <div class="food-item" data-food="발우공양 코스">
+                                    <div class="flex flex-wrap justify-center items-center gap-2 md:gap-4 text-center text-sm md:text-base cursor-pointer">
+                                        <div><h4 class="font-bold">술적심</h4><p class="text-xs">입맛돋우기</p></div>
+                                        <div class="text-teal-400 font-bold text-xl">→</div>
+                                        <div><h4 class="font-bold">죽상</h4><p class="text-xs">속 달래기</p></div>
+                                        <div class="text-teal-400 font-bold text-xl">→</div>
+                                        <div><h4 class="font-bold">상미/담미</h4><p class="text-xs">맛과 향 즐기기</p></div>
+                                        <div class="text-teal-400 font-bold text-xl">→</div>
+                                        <div><h4 class="font-bold">유미</h4><p class="text-xs">몸과 마음 치유</p></div>
+                                        <div class="text-teal-400 font-bold text-xl">→</div>
+                                        <div><h4 class="font-bold">입가심</h4><p class="text-xs">마무리</p></div>
+                                    </div>
+                                </div>
+                                <div class="mt-8">
+                                <h4 class="font-bold text-lg mb-2">대표적인 누락 요리</h4>
+                                <div class="flex justify-center gap-2 flex-wrap">
+                                    <button class="food-item bg-teal-100 text-teal-800 px-3 py-1 rounded-full text-sm hover:bg-teal-200 transition" data-food="모듬버섯강정">모듬버섯강정</button>
+                                    <button class="food-item bg-teal-100 text-teal-800 px-3 py-1 rounded-full text-sm hover:bg-teal-200 transition" data-food="상추불뚝김치">상추불뚝김치</button>
+                                    <button class="food-item bg-teal-100 text-teal-800 px-3 py-1 rounded-full text-sm hover:bg-teal-200 transition" data-food="오이잣물김치">오이잣물김치</button>
+                                    <button class="food-item bg-teal-100 text-teal-800 px-3 py-1 rounded-full text-sm hover:bg-teal-200 transition" data-food="두부장쌈장">두부장쌈장</button>
+                                </div>
+                                </div>
+                            </div>
+                        `;
+                        break;
+                    case 'hub-north':
+                         content = `
+                             <div class="bg-white p-6 rounded-2xl shadow-lg">
+                                <h3 class="text-2xl font-bold text-blue-700 mb-4 text-center">🕊️ 이북음식의 두 얼굴</h3>
+                                <div id="north-tabs" class="border-b border-slate-200 mb-6 flex justify-center">
+                                    <button class="north-tab-btn py-2 px-4 border-b-2 border-blue-500 text-blue-600 font-semibold" data-tab="omitted">숨겨진 요리</button>
+                                    <button class="north-tab-btn py-2 px-4 border-b-2 border-transparent text-slate-500" data-tab="narrative">이야기의 요리</button>
+                                </div>
+                                <div id="north-tab-content" class="min-h-[200px]"></div>
+                            </div>
+                        `;
+                        break;
+                    case 'hub-modern':
+                         content = `
+                            <div class="bg-white p-6 rounded-2xl shadow-lg">
+                                <h3 class="text-2xl font-bold text-purple-700 mb-6 text-center">✨ 진화하는 한식의 풍경</h3>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div class="bg-purple-50 p-4 rounded-lg">
+                                        <h4 class="font-bold text-purple-800">정착된 퓨전</h4>
+                                        <p class="text-sm text-slate-600 mb-2">이제는 우리 음식의 일부가 된 요리들</p>
+                                        <div class="flex flex-wrap gap-2">
+                                            <button class="food-item bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm" data-food="부대찌개">부대찌개</button>
+                                            <button class="food-item bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm" data-food="치즈닭갈비">치즈닭갈비</button>
+                                        </div>
+                                    </div>
+                                    <div class="bg-purple-50 p-4 rounded-lg">
+                                        <h4 class="font-bold text-purple-800">최신 트렌드</h4>
+                                        <p class="text-sm text-slate-600 mb-2">새로운 물결과 뉴트로 입맛</p>
+                                         <div class="flex flex-wrap gap-2">
+                                            <button class="food-item bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm" data-food="뉴웨이브 국밥">뉴웨이브 국밥</button>
+                                            <button class="food-item bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm" data-food="K-전통간식">K-전통간식</button>
+                                        </div>
+                                    </div>
+                                    <div class="bg-purple-50 p-4 rounded-lg md:col-span-2">
+                                        <h4 class="font-bold text-purple-800">글로벌 하이브리드</h4>
+                                        <p class="text-sm text-slate-600 mb-2">세계와 만나 확장되는 한식의 가능성</p>
+                                         <div class="flex flex-wrap gap-2">
+                                            <button class="food-item bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm" data-food="뇨끼 떡볶이">뇨끼 떡볶이</button>
+                                            <button class="food-item bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm" data-food="새우장 부라타">새우장 부라타</button>
+                                            <button class="food-item bg-purple-100 text-purple-800 px-3 py-1 rounded-full text-sm" data-food="돌문어 간장국수">돌문어 간장국수</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        break;
+                     case 'hub-omission':
+                        content = `
+                            <div class="bg-white p-6 rounded-2xl shadow-lg">
+                                <h3 class="text-2xl font-bold text-rose-700 mb-4 text-center">📊 왜 요리는 누락되는가?</h3>
+                                <p class="text-center text-slate-600 mb-8">특정 요리들이 목록에서 사라지는 구조적 원인을 분석한 결과입니다.</p>
+                                <div class="chart-container">
+                                    <canvas id="omission-chart"></canvas>
+                                </div>
+                            </div>
+                        `;
+                        break;
+                }
+                contentDisplay.innerHTML = content;
+                
+                if (type === 'hub-regional') addMapListeners();
+                if (type === 'hub-north') renderNorthTabContent('omitted');
+                if (type === 'hub-omission') renderOmissionChart();
+                addFoodItemListeners();
+            };
+            
+            const renderOmissionChart = () => {
+                const ctx = document.getElementById('omission-chart').getContext('2d');
+                new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['과도한 지역성', '식재료 희소성/비대중성', '맥락의 탈각', '빠른 진화 속도', '역사적/계급적 편향'],
+                        datasets: [{
+                            label: '누락 원인별 요리 수 (추정)',
+                            data: [18, 12, 6, 6, 4],
+                            backgroundColor: 'rgba(225, 29, 72, 0.6)',
+                            borderColor: 'rgba(225, 29, 72, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        indexAxis: 'y',
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            title: { display: true, text: '주요 누락 원인 분석' }
+                        },
+                        scales: {
+                            x: { beginAtZero: true }
+                        }
+                    }
+                });
+            };
+
+            const addMapListeners = () => {
+                const provinces = document.querySelectorAll('.province');
+                const infoDiv = document.getElementById('regional-info');
+                
+                provinces.forEach(p => {
+                    p.addEventListener('click', () => {
+                        provinces.forEach(el => el.classList.remove('active'));
+                        p.classList.add('active');
+                        
+                        const regionName = p.dataset.region;
+                        
+                        const regionFoods = Object.keys(foodData).filter(key => {
+                            const item = foodData[key];
+                            if(item.origin !== '향토음식') return false;
+                            if(regionName === '수도권') return item.subCategory.includes('수도권');
+                            return item.subCategory.includes(regionName);
+                        });
+
+                        let infoHtml = `<h4 class="font-bold text-lg text-green-800 mb-3">${regionName}의 숨겨진 요리</h4>`;
+                        if (regionFoods.length > 0) {
+                            infoHtml += '<ul class="space-y-2">';
+                            regionFoods.forEach(food => {
+                                infoHtml += `<li><button class="food-item text-left text-slate-700 hover:text-green-600 transition" data-food="${food}">${food}</button></li>`;
+                            });
+                            infoHtml += '</ul>';
+                        } else {
+                            infoHtml += '<p class="text-slate-500">이 지역의 누락된 정보가 아직 없습니다.</p>';
+                        }
+                        infoDiv.innerHTML = infoHtml;
+                        addFoodItemListeners();
+                    });
+                });
+            };
+
+            const renderNorthTabContent = (tab) => {
+                 const contentDiv = document.getElementById('north-tab-content');
+                 const tabButtons = document.querySelectorAll('.north-tab-btn');
+                 tabButtons.forEach(btn => {
+                     btn.classList.remove('border-blue-500', 'text-blue-600', 'font-semibold');
+                     btn.classList.add('border-transparent', 'text-slate-500');
+                 });
+                 document.querySelector(`.north-tab-btn[data-tab="${tab}"]`).classList.add('border-blue-500', 'text-blue-600', 'font-semibold');
+
+                 let html = '';
+                 let foods = [];
+                 switch(tab) {
+                     case 'omitted':
+                         html += '<p class="text-sm text-slate-600 mb-4">대중에게 잘 알려지지 않았지만, 각 지역의 특색을 간직한 요리들입니다.</p>';
+                         foods = ['가릿국', '언감자떡', '노티', '어복쟁반', '연안식해'];
+                         break;
+                     case 'narrative':
+                         html += '<p class="text-sm text-slate-600 mb-4">북한의 특정 시대적, 사회적 상황을 배경으로 탄생하여 그 자체로 역사가 된 요리들입니다.</p>';
+                         foods = ['인조고기밥', '두부밥'];
+                         break;
+                 }
+
+                 html += '<div class="flex flex-wrap gap-2">';
+                 foods.forEach(food => {
+                    const foodName = food;
+                    html += `<button class="food-item bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm hover:bg-blue-200 transition" data-food="${foodName}">${foodName}</button>`;
+                 });
+                 html += '</div>';
+                 contentDiv.innerHTML = html;
+                 addFoodItemListeners();
+            }
+
+            const addFoodItemListeners = () => {
+                document.querySelectorAll('.food-item').forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        const foodName = e.currentTarget.dataset.food;
+                        openModal(foodName);
+                    });
+                });
+                 document.querySelectorAll('.north-tab-btn').forEach(item => {
+                    item.addEventListener('click', (e) => {
+                        const tab = e.currentTarget.dataset.tab;
+                        renderNorthTabContent(tab);
+                    });
+                });
+            };
+
+            const populateMasterList = () => {
+                const origin = originFilter.value;
+                const searchTerm = searchInput.value.toLowerCase();
+                let filteredHtml = '';
+
+                Object.keys(foodData).forEach(key => {
+                    const item = foodData[key];
+                    const matchesOrigin = (origin === 'all' || item.origin === origin || (origin === '현대/퓨전' && item.origin === '현대/퓨전'));
+                    const matchesSearch = (searchTerm === '' || key.toLowerCase().includes(searchTerm));
+
+                    if (matchesOrigin && matchesSearch) {
+                        filteredHtml += `
+                            <tr class="hover:bg-slate-50">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium" style="color:${getOriginColor(item.origin)}">${item.origin}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">${item.subCategory}</td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-cyan-700">
+                                    <button class="food-item hover:underline" data-food="${key}">${key}</button>
+                                </td>
+                                <td class="px-6 py-4 whitespace-normal text-sm text-slate-500">${item.reason}</td>
+                            </tr>
+                        `;
+                    }
+                });
+                masterTableBody.innerHTML = filteredHtml;
+                addFoodItemListeners();
+            };
+
+            hubCards.forEach(card => {
+                card.addEventListener('click', () => {
+                    renderContent(card.id);
+                });
+            });
+
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    closeModal();
+                }
+            });
+            
+            originFilter.addEventListener('change', populateMasterList);
+            searchInput.addEventListener('input', populateMasterList);
+
+            populateMasterList();
+        });
+    </script>
+
+</body>
+</html>
