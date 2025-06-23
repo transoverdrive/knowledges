@@ -119,7 +119,6 @@
     </footer>
     
     <script>
-        // --- DATA INITIALIZATION (STABLE) ---
         const allFoodData = {};
 
         function initializeData() {
@@ -160,10 +159,10 @@
                 '가이세키 (懐石)': { origin: '격식 요리', subCategory: '다도', description: '차(茶)를 맛있게 마시기 위한 간소한 식사.', reason: '목적과 구성이 다른 会席 요리와 혼동되어 개념적 구분이 필요.', category: '기타' },
                 '가이세키 (会席)': { origin: '격식 요리', subCategory: '연회', description: '술(酒)을 즐기기 위한 화려한 연회 음식.', reason: '목적과 구성이 다른 懐石 요리와 혼동되어 개념적 구분이 필요.', category: '기타' },
                 '갓포 요리': { origin: '격식 요리', subCategory: '카운터', description: '요리사와 소통하며 즐기는 고급 즉석 요리.', reason: '요리 장르라기보다 식사 스타일에 가까움.', category: '기타' },
-                '고마도후': { origin: '사찰 요리', subCategory: '두부', description: '참깨와 칡 전분으로 만든 두부. 쇼진 요리의 상징적 메뉴.', reason: '콩을 사용하지 않는 독특한 제법.', category: '무침류' },
+                '고마도후': { origin: '사찰 요리', subCategory: '두부', description: '참깨와 칡 전분으로 만든 두부. 쇼진 요리의 상징적 메뉴.', reason: '콩을 사용하지 않는 독특한 제법.', category: '초무침/무침류' },
                 '모도키 요리': { origin: '사찰 요리', subCategory: '모방', description: '고기/생선을 모방한 채식 요리. 쇼진 요리의 창의성을 보여줌.', reason: '독창적인 조리법.', category: '튀김류' },
                 '라후테': { origin: '오키나와 요리', subCategory: '돼지고기', description: '아와모리와 흑설탕에 조린 돼지고기. 중국 요리의 영향.', reason: '본토 요리와 다른 독자적 조리법.', category: '조림류' },
-                '찬푸루': { origin: '오키나와 요리', subCategory: '볶음', description: '여주, 두부 등을 볶은 요리. 오키나와의 혼합 문화를 상징.', reason: '고야 등 독특한 식재료 사용.', category: '조림/볶음' },
+                '찬푸루': { origin: '오키나와 요리', subCategory: '볶음', description: '여주, 두부 등을 볶은 요리. 오키나와의 혼합 문화를 상징.', reason: '고야 등 독특한 식재료 사용.', category: '조림류' },
                 '누치구스이 관련 요리': { origin: '오키나와 요리', subCategory: '건강식', description: '\'생명의 약\'이라는 철학이 담긴 오키나와의 일상 건강식.', reason: '음식에 담긴 철학적 맥락.', category: '기타' },
                 '돈카츠': { origin: '요쇼쿠/퓨전', subCategory: '요쇼쿠', description: '서양 커틀릿의 일본식 변형. 튀김 방식, 소스, 상차림의 완전한 토착화.', reason: '서양 요리의 일본식 재창조.', category: '튀김류' },
                 '오므라이스': { origin: '요쇼쿠/퓨전', subCategory: '요쇼쿠', description: '서양에 원형이 없는 일본의 창작 요리.', reason: '서양의 오믈렛과 일본의 밥을 결합한 독창적 발명품.', category: '밥류' },
@@ -187,7 +186,7 @@
                 },
                 "조림류": {
                     "생선 조림": ["부리다이콘", "사바노미소니", "킨메다이노니츠케", "카레이노니츠케", "아라다키"],
-                    "고기/채소 조림": ["니쿠자가", "가쿠니", "지쿠젠니", "라후테", "히지키노니모노", "키리보시다이콘노니모노", "다케노코노도사니", "코야도후노니모노"]
+                    "고기/채소 조림": ["니쿠자가", "가쿠니", "지쿠젠니", "히지키노니모노", "키리보시다이콘노니모노", "다케노코노도사니", "코야도후노니모노"]
                 },
                 "구이류": {
                     "생선 구이": ["사바노시오야키", "산마노시오야키", "사케노시오야키", "호케노히라키", "우나기노카바야키", "아유노시오야키"],
@@ -243,7 +242,6 @@
             }
         }
         
-        // --- UI RENDER AND EVENT LISTENERS ---
         document.addEventListener('DOMContentLoaded', () => {
             initializeData();
             
@@ -302,32 +300,37 @@
             
             function renderContent(type) {
                 let content = '';
+                contentDisplay.innerHTML = ''; // Clear previous content
                 contentDisplay.scrollIntoView({ behavior: 'smooth', block: 'start' });
                 const researchedFoods = Object.keys(allFoodData).filter(key => allFoodData[key].status === 'researched').reduce((obj, key) => { obj[key] = allFoodData[key]; return obj; }, {});
+                
+                let targetElement = document.getElementById('content-display');
 
                 switch(type) {
                     case 'hub-guide':
                         content = `<div class="bg-white p-6 rounded-2xl shadow-lg"><h3 class="text-2xl font-bold text-cyan-700 mb-4 text-center">📖 일본 요리 분류 체계 안내</h3><div class="border-b border-slate-200 mb-6 flex justify-center"><button class="guide-tab-btn py-2 px-4 border-b-2 active" data-tab="guide-origin">유래/맥락 기준</button><button class="guide-tab-btn py-2 px-4 border-b-2 border-transparent" data-tab="guide-category">대분류(요리 유형) 기준</button></div><div id="guide-tab-content"></div></div>`;
+                        targetElement.innerHTML = content;
+                        renderGuideTabContent('guide-origin');
                         break;
                     case 'hub-regional':
-                         content = `<div class="bg-white p-6 rounded-2xl shadow-lg"><h3 class="text-2xl font-bold text-green-700 mb-4 text-center">🗺️ 향토 요리 탐험</h3><p class="text-center text-slate-600 mb-6">지도에서 지역을 선택하여 숨겨진 향토 요리를 확인해보세요.</p><div class="flex flex-col md:flex-row gap-8 items-center"><div class="w-full md:w-1/2"><div class="map-japan"><svg viewBox="0 0 400 600" id="japan-map-svg"><g class="region" data-region="홋카이도"><path class="region-shape fill-green-200 hover:fill-green-400" d="M100 0 L300 0 L400 100 L250 150 L100 120 z"/><text x="200" y="80">홋카이도</text></g><g class="region" data-region="도호쿠"><path class="region-shape fill-green-200 hover:fill-green-400" d="M200 160 L350 160 L320 250 L200 230 z"/><text x="260" y="200">도호쿠</text></g><g class="region" data-region="간토"><path class="region-shape fill-green-200 hover:fill-green-400" d="M220 255 L340 255 L310 320 L220 310 z"/><text x="265" y="290">간토</text></g><g class="region" data-region="주부"><path class="region-shape fill-green-200 hover:fill-green-400" d="M150 240 L215 235 L215 315 L180 340 L130 300 z"/><text x="170" y="280">주부</text></g><g class="region" data-region="간사이"><path class="region-shape fill-green-200 hover:fill-green-400" d="M160 345 L220 320 L240 380 L160 390 z"/><text x="190" y="360">간사이</text></g><g class="region" data-region="주고쿠"><path class="region-shape fill-green-200 hover:fill-green-400" d="M80 350 L155 395 L140 450 L50 420 z"/><text x="100" y="400">주고쿠</text></g><g class="region" data-region="시코쿠"><path class="region-shape fill-green-200 hover:fill-green-400" d="M150 455 L200 450 L190 490 L140 480 z"/><text x="165" y="470">시코쿠</text></g><g class="region" data-region="규슈"><path class="region-shape fill-green-200 hover:fill-green-400" d="M30 425 L135 455 L100 550 L20 500 z"/><text x="70" y="480">규슈</text></g><g class="region" data-region="오키나와"><path class="region-shape fill-green-200 hover:fill-green-400" d="M50 560 h 80 v 30 h -80 z"/><text x="90" y="580">오키나와</text></g></svg></div></div><div id="regional-info" class="w-full md:w-1/2 p-4 bg-green-50 rounded-lg min-h-[300px]"><p class="text-slate-500">지도를 클릭하여 지역별 정보를 확인하세요.</p></div></div></div>`;
+                         content = `<div class="bg-white p-6 rounded-2xl shadow-lg"><h3 class="text-2xl font-bold text-green-700 mb-4 text-center">🗺️ 향토 요리 탐험</h3><p class="text-center text-slate-600 mb-6">지도에서 지역을 선택하여 숨겨진 향토 요리를 확인해보세요.</p><div class="flex flex-col md:flex-row gap-8 items-center"><div class="w-full md:w-1/2"><div class="map-japan"><svg viewBox="0 0 400 600" id="japan-map-svg"><g class="region" data-region="홋카이도"><path class="region-shape fill-green-200 hover:fill-green-400" d="M100 0 L300 0 L400 100 L250 150 L100 120 z"/><text x="200" y="80" class="font-bold pointer-events-none">홋카이도</text></g><g class="region" data-region="도호쿠"><path class="region-shape fill-green-200 hover:fill-green-400" d="M200 160 L350 160 L320 250 L200 230 z"/><text x="260" y="200" class="font-bold pointer-events-none">도호쿠</text></g><g class="region" data-region="간토"><path class="region-shape fill-green-200 hover:fill-green-400" d="M220 255 L340 255 L310 320 L220 310 z"/><text x="265" y="290" class="font-bold pointer-events-none">간토</text></g><g class="region" data-region="주부"><path class="region-shape fill-green-200 hover:fill-green-400" d="M150 240 L215 235 L215 315 L180 340 L130 300 z"/><text x="170" y="280" class="font-bold pointer-events-none">주부</text></g><g class="region" data-region="간사이"><path class="region-shape fill-green-200 hover:fill-green-400" d="M160 345 L220 320 L240 380 L160 390 z"/><text x="190" y="360" class="font-bold pointer-events-none">간사이</text></g><g class="region" data-region="주고쿠"><path class="region-shape fill-green-200 hover:fill-green-400" d="M80 350 L155 395 L140 450 L50 420 z"/><text x="100" y="400" class="font-bold pointer-events-none">주고쿠</text></g><g class="region" data-region="시코쿠"><path class="region-shape fill-green-200 hover:fill-green-400" d="M150 455 L200 450 L190 490 L140 480 z"/><text x="165" y="470" class="font-bold pointer-events-none">시코쿠</text></g><g class="region" data-region="규슈"><path class="region-shape fill-green-200 hover:fill-green-400" d="M30 425 L135 455 L100 550 L20 500 z"/><text x="70" y="480" class="font-bold pointer-events-none">규슈</text></g><g class="region" data-region="오키나와"><path class="region-shape fill-green-200 hover:fill-green-400" d="M50 560 h 80 v 30 h -80 z"/><text x="90" y="580" class="font-bold pointer-events-none">오키나와</text></g></svg></div></div><div id="regional-info" class="w-full md:w-1/2 p-4 bg-green-50 rounded-lg min-h-[300px]"><p class="text-slate-500">지도를 클릭하여 지역별 정보를 확인하세요.</p></div></div></div>`;
+                        targetElement.innerHTML = content;
+                        addMapListeners(researchedFoods);
                         break;
                      case 'hub-formal':
                         content = `<div class="bg-white p-6 rounded-2xl shadow-lg"><h3 class="text-2xl font-bold text-amber-700 mb-4 text-center">🏛️ 격식 요리의 세계</h3><div class="border-b border-slate-200 mb-6 flex justify-center"><button class="formal-tab-btn py-2 px-4 border-b-2 border-amber-500 text-amber-600 font-semibold" data-tab="comparison">개념 비교</button><button class="formal-tab-btn py-2 px-4 border-b-2 border-transparent text-slate-500" data-tab="dishes">대표 요리</button></div><div id="formal-tab-content"></div></div>`;
+                        targetElement.innerHTML = content;
+                        renderFormalTabContent('comparison');
                         break;
                     case 'hub-omission':
                         content = `<div class="bg-white p-6 rounded-2xl shadow-lg"><h3 class="text-2xl font-bold text-rose-700 mb-4 text-center">📊 왜 요리는 누락되는가?</h3><p class="text-center text-slate-600 mb-8">특정 요리들이 목록에서 사라지는 구조적 원인을 분석한 결과입니다.</p><div class="chart-container"><canvas id="omission-chart"></canvas></div></div>`;
+                        targetElement.innerHTML = content;
+                        renderOmissionChart();
                         break;
                     default: 
                         contentDisplay.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-lg text-center"><h3 class="text-2xl font-bold text-slate-700">콘텐츠 준비 중</h3><p class="text-slate-500 mt-2">선택하신 테마의 콘텐츠를 곧 제공해드리겠습니다.</p></div>`;
                         return;
                 }
-                contentDisplay.innerHTML = content;
-                
-                if (type === 'hub-guide') renderGuideTabContent('guide-origin');
-                if (type === 'hub-regional') addMapListeners(researchedFoods);
-                if (type === 'hub-formal') renderFormalTabContent('comparison');
-                if (type === 'hub-omission') renderOmissionChart();
                 addFoodItemListeners();
             }
 
@@ -338,7 +341,7 @@
                  tabButtons.forEach(btn => { btn.classList.remove('active'); if(btn.dataset.tab === tab) btn.classList.add('active'); });
                  let html = '<div class="space-y-4">';
                  if (tab === 'guide-category') {
-                     definitions.categories.forEach(item => { html += `<div class="p-4 bg-slate-50 rounded-lg"><h4 class="font-bold text-slate-800">${item.name.split(' ')[0]}</h4><p class="text-sm text-slate-600 mt-1">${item.desc}</p></div>`; });
+                     definitions.categories.forEach(item => { html += `<div class="p-4 bg-slate-50 rounded-lg"><h4 class="font-bold text-slate-800">${item.name}</h4><p class="text-sm text-slate-600 mt-1">${item.desc}</p></div>`; });
                  } else {
                      definitions.origins.forEach(item => { html += `<div class="p-4 bg-slate-50 rounded-lg"><h4 class="font-bold" style="color:${getOriginColor(item.name)}">${item.name}</h4><p class="text-sm text-slate-600 mt-1">${item.desc}</p><div class="mt-2 text-xs bg-cyan-50 text-cyan-800 p-2 rounded"><b>판단 기준:</b> ${item.criteria}</div></div>`; });
                  }
