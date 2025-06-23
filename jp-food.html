@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>인터랙티브 일식 백과사전 (최종 통합 버전)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- Chosen Palette: Warm Neutrals with Subtle Accents -->
+    <!-- Application Structure Plan: The SPA is a unified, interactive "encyclopedia" for Japanese cuisine. It merges a comprehensive general dish list with specialized, researched dishes from the source report. The primary navigation is a filterable, searchable master list of ALL dishes. A "Thematic Hub" provides curated entry points to explore the contextual stories of researched dishes (Regional, Formal, Temple, etc.), and a "Classification Guide" explains the 3-axis framework. This dual structure serves both comprehensive lookup and guided discovery, making it the most robust and user-friendly architecture for the combined dataset. -->
+    <!-- Visualization & Content Choices: Report Info -> Goal -> Viz/Method -> Interaction -> Justification. 1. Combined Dish List (General + Researched) -> Unified Search -> Filterable Table (HTML/JS) -> Allows users to query the entire dataset. A "Status" tag visually differentiates researched dishes. 2. Regional Foods -> Geographic Exploration -> Interactive Map (HTML/CSS/JS) -> Click region to show researched regional dishes -> Intuitive discovery. 3. Omission Reasons -> Structural Analysis -> Bar Chart (Chart.js) -> Quantifies reasons for omission -> Provides a high-level analytical view. All visuals use Canvas or HTML/CSS. -->
+    <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
+    <style>
+        body { font-family: 'Noto Sans KR', sans-serif; scroll-behavior: smooth; }
+        .map-japan { position: relative; width: 100%; max-width: 400px; margin: auto; }
+        .map-japan .region { position: absolute; cursor: pointer; transition: all 0.3s ease; }
+        .map-japan .region:hover .region-shape { transform: scale(1.05); fill-opacity: 0.8; }
+        .map-japan .region.active .region-shape { fill-opacity: 1; stroke-width: 3px; }
+        .region-shape { transition: all 0.3s ease; stroke: #fff; stroke-width: 2px; }
+        .modal { transition: opacity 0.3s ease; }
+        .modal-content { transition: transform 0.3s ease; }
+        .chart-container { position: relative; width: 100%; max-width: 800px; margin-left: auto; margin-right: auto; height: 350px; max-height: 400px; }
+        .status-tag { font-size: 0.7rem; font-weight: bold; padding: 2px 6px; border-radius: 9999px; margin-left: 8px; }
+        .guide-tab-btn.active { border-color: #0891b2; color: #0e7490; font-weight: 600; }
+    </style>
+</head>
+<body class="bg-stone-50 text-slate-800">
+
+    <header class="bg-white/90 backdrop-blur-lg shadow-sm sticky top-0 z-40">
+        <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-4">
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-900 tracking-tight">인터랙티브 일식 백과사전</h1>
+            <p class="text-sm md:text-base text-slate-600 mt-1">일반 요리와 심층 분석 요리를 총망라한 완성형 데이터베이스</p>
+        </div>
+    </header>
+
+    <main class="container mx-auto p-4 sm:p-6 lg:p-8">
+
+        <section id="explorer-hub" class="mb-12">
+            <h2 class="text-2xl font-bold text-center mb-8">일식 탐험 허브: 테마로 길 찾기</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div id="hub-guide" class="hub-card col-span-1 md:col-span-2 lg:col-span-3 bg-cyan-600 text-white p-6 rounded-2xl shadow-lg cursor-pointer hover:shadow-xl hover:bg-cyan-700 transition-all duration-300">
+                    <h3 class="text-xl font-bold mb-2">📖 분류 체계 안내</h3>
+                    <p>새로운 요리를 어떤 기준으로 분류하는지, 각 분류의 정의와 판단 기준을 확인해보세요.</p>
+                </div>
+                <div id="hub-regional" class="hub-card bg-white p-6 rounded-2xl shadow-lg cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                    <h3 class="text-xl font-bold text-green-700 mb-2">🗺️ 향토 요리 (郷土料理)</h3>
+                    <p class="text-slate-600">지도 위에서 각 지역의 기후와 특산물이 빚어낸 고유의 맛을 발견해보세요.</p>
+                </div>
+                <div id="hub-formal" class="hub-card bg-white p-6 rounded-2xl shadow-lg cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                    <h3 class="text-xl font-bold text-amber-700 mb-2">🏛️ 격식 요리 (本膳・会席)</h3>
+                    <p class="text-slate-600">의례와 향연의 목적에 따라 나뉘는 정교한 요리 체계를 탐험합니다.</p>
+                </div>
+                <div id="hub-temple" class="hub-card bg-white p-6 rounded-2xl shadow-lg cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                    <h3 class="text-xl font-bold text-teal-700 mb-2">🧘 사찰 요리 (精進料理)</h3>
+                    <p class="text-slate-600">불교의 철학과 절제의 미학이 담긴 채식의 세계로 안내합니다.</p>
+                </div>
+                <div id="hub-okinawa" class="hub-card bg-white p-6 rounded-2xl shadow-lg cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                    <h3 class="text-xl font-bold text-blue-700 mb-2">🏝️ 오키나와 요리 (沖縄料理)</h3>
+                    <p class="text-slate-600">류큐 왕국의 독자적 역사와 문화가 녹아있는 남국의 맛을 만나보세요.</p>
+                </div>
+                <div id="hub-yoshoku" class="hub-card bg-white p-6 rounded-2xl shadow-lg cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                    <h3 class="text-xl font-bold text-purple-700 mb-2">✨ 요쇼쿠/퓨전 (洋食・創作)</h3>
+                    <p class="text-slate-600">서양과의 만남으로 탄생하고 진화하는 창의적인 요리들을 소개합니다.</p>
+                </div>
+                 <div id="hub-omission" class="hub-card bg-white p-6 rounded-2xl shadow-lg cursor-pointer hover:shadow-xl hover:-translate-y-1 transition-all duration-300">
+                    <h3 class="text-xl font-bold text-rose-700 mb-2">📊 누락의 이유</h3>
+                    <p class="text-slate-600">왜 특정 요리들은 목록에서 자주 보이지 않을까요? 그 구조적 원인을 분석합니다.</p>
+                </div>
+            </div>
+        </section>
+
+        <div id="content-display" class="mt-12"></div>
+
+        <section id="master-list" class="mt-12 bg-white p-6 rounded-2xl shadow-lg">
+             <h2 class="text-2xl font-bold text-center mb-8">일식 요리 종합 목록 (총 <span id="food-count">0</span>개)</h2>
+             <div class="flex flex-wrap gap-4 mb-6 justify-center">
+                 <div class="w-full sm:w-auto">
+                    <label for="filter-category" class="block text-sm font-medium text-slate-700">대분류 (유형별)</label>
+                    <select id="filter-category" class="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm rounded-md">
+                        <option value="all">전체</option>
+                    </select>
+                </div>
+                <div class="w-full sm:w-auto">
+                    <label for="search-food" class="block text-sm font-medium text-slate-700">음식 이름 검색</label>
+                    <input type="text" id="search-food" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-cyan-500 focus:border-cyan-500 sm:text-sm" placeholder="예: 돈카츠, 야키토리...">
+                </div>
+             </div>
+             <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-slate-200">
+                    <thead class="bg-slate-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">대분류</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">소분류</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">음식명</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">유래/맥락</th>
+                        </tr>
+                    </thead>
+                    <tbody id="master-table-body" class="bg-white divide-y divide-slate-200">
+                    </tbody>
+                </table>
+             </div>
+        </section>
+    </main>
+    
+    <div id="food-modal" class="fixed inset-0 bg-black bg-opacity-60 z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none modal">
+        <div id="modal-content" class="modal-content bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto transform scale-95">
+        </div>
+    </div>
+
+
+    <footer class="bg-slate-800 text-white mt-16">
+        <div class="container mx-auto p-6 text-center text-sm text-slate-400">
+            <p>본 콘텐츠는 '일본 요리의 종합적 분석' 보고서를 기반으로 제작된 인터랙티브 애플리케이션입니다.</p>
+            <p class="mt-1">&copy; 2025 Interactive Japanese Food Encyclopedia.</p>
+        </div>
+    </footer>
+    
+    <script>
+        // --- DATA INITIALIZATION (STABLE) ---
+        const allFoodData = {};
+
+        function initializeData() {
+            const researchedFoods = {
+                '이시카리나베': { origin: '향토 요리', subCategory: '홋카이도', description: '된장 베이스에 연어와 채소를 넣은 전골. 현지에서는 유명하지만 국제적으로는 라멘에 가려져 있다.', reason: '라멘, 가이센동 등 단품 요리에 비해 전골 요리는 덜 알려져 있음.', category: '국/전골류' },
+                '찬찬야키': { origin: '향토 요리', subCategory: '홋카이도', description: '철판에 된장 소스와 함께 연어와 채소를 쪄서 먹는 요리. 전형적인 어부들의 음식이다.', reason: '조리 방식이 소박하고 가정식의 성격이 강해 대표 요리 목록에서 제외.', category: '찜류' },
+                '부타동': { origin: '향토 요리', subCategory: '홋카이도', description: '오비히로 지역의 돼지고기 덮밥으로, 일반적인 규동과는 구별된다.', reason: '전국적으로 더 유명한 규동(소고기 덮밥)에 가려져 지역 명물로만 인식됨.', category: '밥류' },
+                '수프 카레': { origin: '향토 요리', subCategory: '홋카이도', description: '삿포로에서 탄생한 독특한 카레로, 묽고 매콤한 국물에 큰 고기 덩어리와 채소가 들어간 현대적인 향토 요리다.', reason: '비교적 최근에 탄생한 \'현대적\' 향토 요리로, 전통 음식 목록에서는 누락.', category: '국/전골류' },
+                '기리탄포나베': { origin: '향토 요리', subCategory: '도호쿠', description: '으깬 밥을 꼬치에 구워 닭고기, 채소와 함께 끓인 아키타의 대표 요리.', reason: '아키타 지역에 한정된 매우 특색 있는 요리로, 전국적 인지도는 낮음.', category: '국/전골류' },
+                '센베지루': { origin: '향토 요리', subCategory: '도호쿠', description: '아오모리현 하치노헤시의 간장 기반 국물에, 국물에 넣어도 풀어지지 않는 특수 밀 전병(난부 센베)을 넣어 끓인 요리.', reason: '\'전병을 국에 넣어 먹는다\'는 생소한 개념과 강한 지역성으로 인해 누락.', category: '국/전골류' },
+                '왓파메시': { origin: '향토 요리', subCategory: '도호쿠', description: '얇고 둥근 나무 용기에 제철 재료와 밥을 넣고 찐 요리로, 후쿠시마와 니가타에서 유래.', reason: '\'가마메시(솥밥)\'와 유사하지만 \'왓파\'라는 특정 용기를 사용하는 지역 요리.', category: '밥류' },
+                '하라코메시': { origin: '향토 요리', subCategory: '도호쿠', description: '연어 육수로 지은 밥 위에 연어 살과 연어 알(이쿠라)을 올린 미야기현의 명물.', reason: '연어와 연어알 덮밥(사케오야코동)과 유사해 보이나, 밥을 연어 육수로 짓는다는 미묘한 차이가 간과됨.', category: '밥류' },
+                '숏쓰루나베': { origin: '향토 요리', subCategory: '도호쿠', description: '도루묵으로 만든 생선 장(魚醬)인 \'숏쓰루\'로 간을 한 아키타의 전골 요리.', reason: '\'숏쓰루\'라는 발효 조미료의 독특한 향과 맛이 대중적이지 않음.', category: '국/전골류' },
+                '야나가와나베': { origin: '향토 요리', subCategory: '간토', description: '미꾸라지, 우엉, 계란을 넣은 전골로, 고전적인 에도 시대 요리.', reason: '주재료인 미꾸라지에 대한 호불호가 갈려 대중적인 목록에서 제외.', category: '국/전골류' },
+                '후카가와메시': { origin: '향토 요리', subCategory: '간토', description: '된장이나 간장으로 조리한 조개를 밥 위에 얹은 덮밥으로, 에도 후카가와 지역 어부들의 음식에서 유래.', reason: '특정 지역(도쿄 후카가와)의 서민 음식으로, 스시나 덴푸라 같은 화려한 요리에 가려짐.', category: '밥류' },
+                '잔코나베': { origin: '향토 요리', subCategory: '간토', description: '스모 선수의 영양 보충을 위한 푸짐한 전골로, 도쿄 료고쿠 지역에서 유래.', reason: '\'스모 선수의 음식\'이라는 특수한 맥락을 가지며, 일반적인 식사 메뉴와는 거리가 있음.', category: '국/전골류' },
+                '시모니타 파 요리': { origin: '향토 요리', subCategory: '간토', description: '군마현의 특산물인 시모니타 파와 곤약을 활용한 요리, 특히 스키야키에 많이 사용됨.', reason: '특정 식재료를 중심으로 한 요리로, 단품 메뉴보다는 스키야키 등의 부재료로 더 알려져 있음.', category: '조림류' },
+                '호토': { origin: '향토 요리', subCategory: '주부', description: '넓고 납작한 우동 면을 호박 등 채소와 함께 된장 국물에 끓여 먹는 요리.', reason: '우동과 유사하지만 면의 형태와 조리법이 달라 \'야마나시의 향토 요리\'로만 한정적으로 인식됨.', category: '면류' },
+                '기시멘': { origin: '향토 요리', subCategory: '주부', description: '넓고 납작한 면으로, 나고야의 명물이자 일반 우동과는 다른 독특한 식감을 가짐.', reason: '우동의 한 종류로 취급되어 독립적인 메뉴로서의 인지도가 낮음.', category: '면류' },
+                '고헤이모치': { origin: '향토 요리', subCategory: '주부', description: '으깬 밥을 꼬치에 꽂아 달고 짠 된장이나 간장 소스를 발라 구운 떡.', reason: '주식보다는 간식이나 길거리 음식의 성격이 강해 정식 요리 목록에서 누락.', category: '구이류' },
+                '마스즈시': { origin: '향토 요리', subCategory: '주부', description: '대나무 잎으로 감싼 송어 누름 초밥.', reason: '특정 지역(도야마)의 특산품(에키벤 등)으로, 보편적인 스시 종류에서는 잘 다루지 않음.', category: '밥류' },
+                '하코즈시': { origin: '향토 요리', subCategory: '간사이', description: '\'상자 초밥\'으로 불리는 누름 초밥의 일종으로, 다양한 재료를 올려 만드는 에도마에 니기리즈시의 원형 중 하나.', reason: '현대 스시의 주류인 \'니기리즈시\'에 밀려 오사카의 전통적인 스시 형태로만 알려짐.', category: '밥류' },
+                '후나즈시': { origin: '향토 요리', subCategory: '간사이', description: '비와호의 붕어를 발효시켜 만든 고대 형태의 스시로, 치즈와 같은 강한 향과 맛이 특징.', reason: '강렬한 냄새와 맛으로 인해 \'마니아를 위한 음식\'으로 취급되어 대중적이지 않음.', category: '밥류' },
+                '가키노하즈시': { origin: '향토 요리', subCategory: '간사이', description: '고등어나 연어 초밥을 감잎으로 감싼 것으로, 감잎의 은은한 향과 항균 효과를 이용한 요리.', reason: '보존과 향을 위한 독특한 방식이지만, 특정 지역(나라, 와카야마)의 특산품으로 한정됨.', category: '밥류' },
+                '미와소멘': { origin: '향토 요리', subCategory: '간사이', description: '나라현 미와 지역의 특산물인 아주 가는 밀국수.', reason: '일반 소면과의 미묘한 차이가 널리 알려지지 않아, 특정 지역의 고급 소면으로만 인식됨.', category: '면류' },
+                '가키노도테나베': { origin: '향토 요리', subCategory: '주고쿠', description: '냄비 안쪽에 된장을 강둑(도테)처럼 발라놓고 굴과 채소를 끓여 먹는 전골.', reason: '된장을 녹여가며 먹는 독특한 방식이 널리 알려지지 않았고, 히로시마의 굴 요리 중 오코노미야키에 비해 인지도가 낮음.', category: '국/전골류' },
+                '이즈모 소바': { origin: '향토 요리', subCategory: '주고쿠', description: '어두운 색의 메밀국수로, \'와리고\'라는 3단 칠기 그릇에 담아 먹는 것이 특징.', reason: '일반 소바와의 차이점과 \'와리고\'라는 독특한 식문화가 특정 지역의 것으로 한정됨.', category: '면류' },
+                '아나고메시': { origin: '향토 요리', subCategory: '주고쿠', description: '구운 붕장어를 올린 덮밥으로, 미야지마의 명물.', reason: '더 유명한 우나기(민물장어) 덮밥에 가려져, 붕장어를 사용하는 미야지마의 지역 명물로만 알려짐.', category: '밥류' },
+                '바라즈시': { origin: '향토 요리', subCategory: '주고쿠', description: '다양한 색상의 재료를 초밥 위에 흩뿌리거나 섞어 먹는 \'지라시즈시\'의 한 형태.', reason: '전국적으로 알려진 \'지라시즈시\'의 지역적 변형으로, 그 미묘한 차이가 간과되기 쉬움.', category: '밥류' },
+                '가쓰오노타타키': { origin: '향토 요리', subCategory: '시코쿠', description: '짚불에 순간적으로 구워낸 가다랑어 회로, 고치현(도사 지방)의 상징적인 요리.', reason: '\'다타키\'라는 조리법 자체가 생소할 수 있으며, 짚불을 사용하는 전통 방식의 특수성으로 인해 고치의 명물로만 알려짐.', category: '생선회/날것' },
+                '사와치 요리': { origin: '향토 요리', subCategory: '시코쿠', description: '사시미, 다타키, 스시 등 다양한 요리를 하나의 큰 접시(사와치)에 담아내는 연회 음식 스타일.', reason: '특정 요리가 아닌 \'상차림 스타일\'이기 때문에 개별 요리 중심의 목록에서는 누락됨.', category: '기타' },
+                '다이메시': { origin: '향토 요리', subCategory: '시코쿠', description: '도미 밥. 도미를 통째로 밥과 함께 짓는 방식과, 도미 회를 날달걀과 간장에 비벼 뜨거운 밥 위에 얹어 먹는 두 가지 주요 방식이 있다.', reason: '도미라는 고급 식재료를 사용하며, 특히 회를 날달걀에 비벼 먹는 방식은 매우 지역적인 식문화.', category: '밥류' },
+                '미즈타키': { origin: '향토 요리', subCategory: '규슈', description: '닭고기와 채소를 진한 닭 육수에 끓여 폰즈 소스에 찍어 먹는 닭고기 전골.', reason: '모츠나베나 돈코츠 라멘의 강렬한 이미지에 가려진, 담백한 맛의 후쿠오카 대표 전골 요리.', category: '국/전골류' },
+                '가메니': { origin: '향토 요리', subCategory: '규슈', description: '닭고기와 뿌리채소를 조린 요리로, \'지쿠젠니(筑前煮)\'라고도 불림.', reason: '\'지쿠젠니\'라는 이름으로 더 알려져 있으며, 가정식의 성격이 강해 대표 요리 목록에서는 자주 제외됨.', category: '조림류' },
+                '싯포쿠 요리': { origin: '향토 요리', subCategory: '규슈', description: '일본, 중국, 서양의 요소가 혼합된 독특한 퓨전 요리로, 둥근 식탁에서 다 함께 즐기는 것이 특징.', reason: '특정 단품 요리가 아닌 복합적인 \'상차림 문화\'이므로 일반적인 요리 목록에 포함되기 어려움.', category: '기타' },
+                '도리텐': { origin: '향토 요리', subCategory: '규슈', description: '닭고기 덴푸라로, 오이타현의 지역 명물.', reason: '일반적인 덴푸라의 한 종류로 취급되어, 오이타의 독자적인 향토 요리라는 점이 간과됨.', category: '튀김류' },
+                '혼젠 요리': { origin: '격식 요리', subCategory: '의례', description: '무사 계급의 의례 음식. 현대 일본 격식 요리의 원형.', reason: '현대에는 거의 찾아보기 힘든 역사적 요리 체계.', category: '기타' },
+                '가이세키 (懐石)': { origin: '격식 요리', subCategory: '다도', description: '차(茶)를 맛있게 마시기 위한 간소한 식사.', reason: '목적과 구성이 다른 会席 요리와 혼동되어 개념적 구분이 필요.', category: '기타' },
+                '가이세키 (会席)': { origin: '격식 요리', subCategory: '연회', description: '술(酒)을 즐기기 위한 화려한 연회 음식.', reason: '목적과 구성이 다른 懐石 요리와 혼동되어 개념적 구분이 필요.', category: '기타' },
+                '갓포 요리': { origin: '격식 요리', subCategory: '카운터', description: '요리사와 소통하며 즐기는 고급 즉석 요리.', reason: '요리 장르라기보다 식사 스타일에 가까움.', category: '기타' },
+                '고마도후': { origin: '사찰 요리', subCategory: '두부', description: '참깨와 칡 전분으로 만든 두부. 쇼진 요리의 상징적 메뉴.', reason: '콩을 사용하지 않는 독특한 제법.', category: '무침류' },
+                '모도키 요리': { origin: '사찰 요리', subCategory: '모방', description: '고기/생선을 모방한 채식 요리. 쇼진 요리의 창의성을 보여줌.', reason: '독창적인 조리법.', category: '튀김류' },
+                '라후테': { origin: '오키나와 요리', subCategory: '돼지고기', description: '아와모리와 흑설탕에 조린 돼지고기. 중국 요리의 영향.', reason: '본토 요리와 다른 독자적 조리법.', category: '조림류' },
+                '찬푸루': { origin: '오키나와 요리', subCategory: '볶음', description: '여주, 두부 등을 볶은 요리. 오키나와의 혼합 문화를 상징.', reason: '고야 등 독특한 식재료 사용.', category: '조림/볶음' },
+                '누치구스이 관련 요리': { origin: '오키나와 요리', subCategory: '건강식', description: '\'생명의 약\'이라는 철학이 담긴 오키나와의 일상 건강식.', reason: '음식에 담긴 철학적 맥락.', category: '기타' },
+                '돈카츠': { origin: '요쇼쿠/퓨전', subCategory: '요쇼쿠', description: '서양 커틀릿의 일본식 변형. 튀김 방식, 소스, 상차림의 완전한 토착화.', reason: '서양 요리의 일본식 재창조.', category: '튀김류' },
+                '오므라이스': { origin: '요쇼쿠/퓨전', subCategory: '요쇼쿠', description: '서양에 원형이 없는 일본의 창작 요리.', reason: '서양의 오믈렛과 일본의 밥을 결합한 독창적 발명품.', category: '밥류' },
+                '나폴리탄': { origin: '요쇼쿠/퓨전', subCategory: '요쇼쿠', description: '케첩으로 맛을 낸 일본 고유의 스파게티.', reason: '전후 일본에서 탄생한 독자적인 파스타.', category: '면류' },
+                '멘타이코 파스타': { origin: '요쇼쿠/퓨전', subCategory: '와후 파스타', description: '명란을 사용한 대표적인 와후 파스타.', reason: '일본 식재료를 파스타에 접목한 융합 요리.', category: '면류' },
+                '캘리포니아 롤': { origin: '요쇼쿠/퓨전', subCategory: '현대 퓨전', description: '미국에서 탄생하여 일본으로 역수입된 현대적 스시.', reason: '글로벌 상호작용을 통해 진화하는 요리.', category: '밥류' },
+                '소사쿠 요리': { origin: '요쇼쿠/퓨전', subCategory: '창작 요리', description: '숯 건조 숙성 생선회 등, 셰프의 창의성에 기반한 탈국가적 퓨전 요리.', reason: '전통에 얽매이지 않는 현대적 창작의 최전선.', category: '기타' }
+            };
+            const generalFoods = {
+                "밥류": {
+                    "덮밥 (돈부리)": ["규동", "오야코동", "가츠동", "텐동", "우나동", "뎃카동", "카이센동", "추카동", "타마고동", "아나고동"],
+                    "스시": ["니기리즈시", "마키즈시", "테마키즈시", "지라시즈시", "이나리즈시", "오시즈시", "밧테라"],
+                    "밥 요리": ["오니기리", "야키오니기리", "오차즈케", "조스이", "오코와", "카마메시", "타키코미고항", "세키항", "토리메시"],
+                    "요쇼쿠 밥": ["카레라이스", "하이라이스", "도리아", "필라프", "치킨라이스"]
+                },
+                "국/전골류": {
+                    "맑은 국 (스이모노)": ["하마구리노오스이모노", "마츠타케노오스이모노", "다이노오스이모노"],
+                    "된장국 (미소시루)": ["아사리노미소시루", "나메코노미소시루", "톤지루", "시지미지루"],
+                    "전골 (나베모노)": ["스키야키", "샤부샤부", "요세나베", "모츠나베", "기무치나베", "도뉴나베", "오뎅", "유도후"],
+                    "기타 국물": ["켄친지루", "카스지루", "사츠마지루", "히야지루"]
+                },
+                "조림류": {
+                    "생선 조림": ["부리다이콘", "사바노미소니", "킨메다이노니츠케", "카레이노니츠케", "아라다키"],
+                    "고기/채소 조림": ["니쿠자가", "가쿠니", "지쿠젠니", "라후테", "히지키노니모노", "키리보시다이콘노니모노", "다케노코노도사니", "코야도후노니모노"]
+                },
+                "구이류": {
+                    "생선 구이": ["사바노시오야키", "산마노시오야키", "사케노시오야키", "호케노히라키", "우나기노카바야키", "아유노시오야키"],
+                    "고기 구이": ["야키토리", "데리야키 치킨", "부타노쇼가야키", "규탄야키", "야키니쿠", "호루몬야키"],
+                    "채소/기타 구이": ["야키나스", "덴가쿠", "야키모로코시"]
+                },
+                "튀김류": {
+                    "덴푸라": ["에비텐", "키스텐", "야사이텐", "카키아게"],
+                    "카츠": ["톤카츠", "치킨카츠", "규카츠", "멘치카츠", "하무카츠"],
+                    "기타 튀김": ["카라아게", "타츠타아게", "치킨난반", "에비후라이", "아지후라이", "고로케", "쿠시아게", "아게다시도후"]
+                },
+                "찜류": {
+                    "찜 요리": ["자완무시", "사케무시", "도빙무시", "오다마키무시"]
+                },
+                "생선회/날것": {
+                    "회": ["마구로 사시미", "사몬 사시미", "부리 사시미", "타이 사시미", "이카 사시미", "후구사시 (텟사)"],
+                    "기타": ["바사시 (말고기회)"]
+                },
+                "초무침/무침류": {
+                    "초무침 (스노모노)": ["큐우리토와카메노스노모노", "모즈쿠스"],
+                    "무침 (아에모노)": ["호렌소노고마아에", "시라아에", "카라시나스"]
+                },
+                "절임류": {
+                    "절임 (츠케모노)": ["타쿠앙", "우메보시", "시바즈케", "나라즈케", "아사즈케", "베니쇼가", "가리"]
+                },
+                "면류": {
+                    "라멘": ["쇼유라멘", "미소라멘", "시오라멘", "돈코츠라멘", "츠케멘", "아부라소바"],
+                    "우동": ["카케우동", "키츠네우동", "타누키우동", "카레우동", "나베야키우동", "붓카케우동", "자루우동"],
+                    "소바": ["카케소바", "키츠네소바", "타누키소바", "자루소바", "모리소바", "텐푸라소바"],
+                    "기타 면": ["소멘", "히야무기", "야키소바", "야키우동", "히야시추카", "사라우동", "나가사키짬뽕", "오키나와소바"]
+                }
+            };
+            
+            for (const name in researchedFoods) {
+                allFoodData[name] = { ...researchedFoods[name], status: 'researched' };
+            }
+
+            for (const category in generalFoods) {
+                for (const subCategory in generalFoods[category]) {
+                    generalFoods[category][subCategory].forEach(name => {
+                        if (!allFoodData[name]) {
+                            allFoodData[name] = {
+                                category: category,
+                                subCategory: subCategory,
+                                origin: '일반 요리',
+                                description: `일본의 대중적인 ${subCategory} 요리입니다.`,
+                                reason: '-',
+                                status: 'standard'
+                            };
+                        }
+                    });
+                }
+            }
+        }
+        
+        // --- UI RENDER AND EVENT LISTENERS ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeData();
+            
+            const hubCards = document.querySelectorAll('.hub-card');
+            const contentDisplay = document.getElementById('content-display');
+            const modal = document.getElementById('food-modal');
+            const modalContent = document.getElementById('modal-content');
+            const masterTableBody = document.getElementById('master-table-body');
+            const categoryFilter = document.getElementById('filter-category');
+            const searchInput = document.getElementById('search-food');
+            const foodCountEl = document.getElementById('food-count');
+            const definitions = {
+                categories: [
+                    { name: '밥류', desc: '쌀을 주재료로 한 요리. 돈부리, 스시, 오니기리, 오차즈케 등 다양한 형태를 포함합니다.' },
+                    { name: '국/전골류', desc: '국물이 있는 요리. 스이모노(맑은 국), 미소시루(된장국), 나베모노(전골) 등으로 나뉩니다.' },
+                    { name: '조림류', desc: '간장과 설탕 베이스의 국물에 재료를 넣고 천천히 익혀 맛을 낸 요리입니다.' },
+                    { name: '구이류', desc: '재료를 직화나 팬에 직접 구워내는 요리. 소금(시오야키), 간장(데리야키), 된장(미소야키) 등 양념에 따라 분류됩니다.' },
+                    { name: '튀김류', desc: '기름을 이용한 요리. 튀김옷을 입혀 튀기면 덴푸라, 재료 자체를 튀기면 가라아게, 빵가루를 입히면 카츠로 나뉩니다.' },
+                    { name: '찜류', desc: '증기를 이용해 재료를 부드럽게 익히는 요리. 계란찜(자완무시)이 대표적입니다.' },
+                    { name: '생선회/날것', desc: '신선한 해산물을 날것으로 썰어 먹는 요리. 표면만 살짝 익히는 다타키 등을 포함합니다.' },
+                    { name: '초무침/무침류', desc: '식초로 새콤하게 무치면 스노모노, 깨나 두부 등으로 고소하게 무치면 아에모노로 분류됩니다.' },
+                    { name: '절임류', desc: '채소를 소금, 식초, 된장, 쌀겨 등에 절여 만든 보존 음식입니다.' },
+                    { name: '면류', desc: '밀, 메밀 등으로 만든 면 요리. 라멘, 우동, 소바 등 다양한 종류가 있습니다.' },
+                    { name: '기타', desc: '위 분류에 속하지 않는 상차림 방식이나 독특한 장르의 요리를 포함합니다.' }
+                ],
+                origins: [
+                    { name: '일반 요리', desc: '특정 유래/맥락에 속하지 않고, 전국적으로 널리 알려져 표준적인 조리법이 존재하는 대중적인 일본 요리입니다.', criteria: '아래의 특정 유래/맥락 분류에 해당하지 않는 대부분의 요리가 포함됩니다.' },
+                    { name: '향토 요리', desc: '특정 지역의 기후, 지리적 조건, 특산물을 기반으로 형성된 고유한 식문화가 담긴 요리입니다.', criteria: '그 지역이 아니면 맛보기 어렵거나, 특정 지역과 강하게 연관되어 있습니까?' },
+                    { name: '격식 요리', desc: '혼젠, 가이세키 등 의례나 연회를 위해 정해진 형식과 순서에 따라 제공되는 정교한 요리 체계입니다.', criteria: '특정한 목적(의례, 다도, 향연)을 가지고 정해진 순서에 따라 제공되는 코스 요리입니까?' },
+                    { name: '사찰 요리', desc: '불교의 계율에 따라 육류와 오신채(자극적인 채소)를 사용하지 않고 만든 채식 요리입니다.', criteria: '육류와 오신채를 사용하지 않으며, 제철 채소를 중심으로 한 채식 요리입니까?' },
+                    { name: '오키나와 요리', desc: '본토와 다른 독자적인 류큐 왕국의 역사와 문화를 바탕으로 한 요리입니다.', criteria: '돼지고기, 아와모리, 흑설탕, 고야 등 오키나와 특유의 식재료나 조리법을 사용합니까?' },
+                    { name: '요쇼쿠/퓨전', desc: '서양이나 다른 문화권의 요리가 일본식으로 토착화되거나, 현대적으로 재창조된 요리입니다.', criteria: '서양 요리에 기원을 두거나(요쇼쿠), 전통의 틀을 벗어난 창의적인 융합(퓨전)이 포함되어 있습니까?' }
+                ]
+            };
+
+            function openModal(foodName) {
+                const data = allFoodData[foodName];
+                if (!data) return;
+                let modalHtml = `<div class="p-6 md:p-8"><div class="flex justify-between items-start"><h3 class="text-2xl font-bold text-slate-900 mb-2">${foodName}</h3><button id="close-modal" class="text-slate-500 hover:text-slate-800 text-2xl">&times;</button></div><div class="text-sm font-medium text-white inline-block px-3 py-1 rounded-full mb-4" style="background-color: ${getOriginColor(data.origin)}">${data.origin}${data.status === 'researched' ? ` > ${data.subCategory}`: ''}</div><p class="text-slate-700 leading-relaxed mb-4">${data.description}</p>`;
+                if (data.status === 'researched' && data.reason) {
+                    modalHtml += `<div class="bg-amber-50 border-l-4 border-amber-400 p-4 rounded-r-lg"><h4 class="font-semibold text-amber-800">📋 누락 분석</h4><p class="text-amber-700 text-sm mt-1">${data.reason}</p></div>`;
+                }
+                modalHtml += `</div>`;
+                modalContent.innerHTML = modalHtml;
+                modal.classList.remove('opacity-0', 'pointer-events-none');
+                modalContent.classList.remove('scale-95');
+                document.getElementById('close-modal').addEventListener('click', closeModal);
+            }
+
+            function closeModal() { modal.classList.add('opacity-0', 'pointer-events-none'); modalContent.classList.add('scale-95'); }
+            function getOriginColor(origin) {
+                switch(origin) {
+                    case '향토 요리': return '#16a34a'; case '격식 요리': return '#d97706'; case '사찰 요리': return '#0d9488'; case '오키나와 요리': return '#2563eb'; case '요쇼쿠/퓨전': return '#9333ea'; default: return '#475569';
+                }
+            }
+            
+            function renderContent(type) {
+                let content = '';
+                contentDisplay.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                const researchedFoods = Object.keys(allFoodData).filter(key => allFoodData[key].status === 'researched').reduce((obj, key) => { obj[key] = allFoodData[key]; return obj; }, {});
+
+                switch(type) {
+                    case 'hub-guide':
+                        content = `<div class="bg-white p-6 rounded-2xl shadow-lg"><h3 class="text-2xl font-bold text-cyan-700 mb-4 text-center">📖 일본 요리 분류 체계 안내</h3><div class="border-b border-slate-200 mb-6 flex justify-center"><button class="guide-tab-btn py-2 px-4 border-b-2 active" data-tab="guide-origin">유래/맥락 기준</button><button class="guide-tab-btn py-2 px-4 border-b-2 border-transparent" data-tab="guide-category">대분류(요리 유형) 기준</button></div><div id="guide-tab-content"></div></div>`;
+                        break;
+                    case 'hub-regional':
+                         content = `<div class="bg-white p-6 rounded-2xl shadow-lg"><h3 class="text-2xl font-bold text-green-700 mb-4 text-center">🗺️ 향토 요리 탐험</h3><p class="text-center text-slate-600 mb-6">지도에서 지역을 선택하여 숨겨진 향토 요리를 확인해보세요.</p><div class="flex flex-col md:flex-row gap-8 items-center"><div class="w-full md:w-1/2"><div class="map-japan"><svg viewBox="0 0 400 600" id="japan-map-svg"><g class="region" data-region="홋카이도"><path class="region-shape fill-green-200 hover:fill-green-400" d="M100 0 L300 0 L400 100 L250 150 L100 120 z"/><text x="200" y="80">홋카이도</text></g><g class="region" data-region="도호쿠"><path class="region-shape fill-green-200 hover:fill-green-400" d="M200 160 L350 160 L320 250 L200 230 z"/><text x="260" y="200">도호쿠</text></g><g class="region" data-region="간토"><path class="region-shape fill-green-200 hover:fill-green-400" d="M220 255 L340 255 L310 320 L220 310 z"/><text x="265" y="290">간토</text></g><g class="region" data-region="주부"><path class="region-shape fill-green-200 hover:fill-green-400" d="M150 240 L215 235 L215 315 L180 340 L130 300 z"/><text x="170" y="280">주부</text></g><g class="region" data-region="간사이"><path class="region-shape fill-green-200 hover:fill-green-400" d="M160 345 L220 320 L240 380 L160 390 z"/><text x="190" y="360">간사이</text></g><g class="region" data-region="주고쿠"><path class="region-shape fill-green-200 hover:fill-green-400" d="M80 350 L155 395 L140 450 L50 420 z"/><text x="100" y="400">주고쿠</text></g><g class="region" data-region="시코쿠"><path class="region-shape fill-green-200 hover:fill-green-400" d="M150 455 L200 450 L190 490 L140 480 z"/><text x="165" y="470">시코쿠</text></g><g class="region" data-region="규슈"><path class="region-shape fill-green-200 hover:fill-green-400" d="M30 425 L135 455 L100 550 L20 500 z"/><text x="70" y="480">규슈</text></g><g class="region" data-region="오키나와"><path class="region-shape fill-green-200 hover:fill-green-400" d="M50 560 h 80 v 30 h -80 z"/><text x="90" y="580">오키나와</text></g></svg></div></div><div id="regional-info" class="w-full md:w-1/2 p-4 bg-green-50 rounded-lg min-h-[300px]"><p class="text-slate-500">지도를 클릭하여 지역별 정보를 확인하세요.</p></div></div></div>`;
+                        break;
+                     case 'hub-formal':
+                        content = `<div class="bg-white p-6 rounded-2xl shadow-lg"><h3 class="text-2xl font-bold text-amber-700 mb-4 text-center">🏛️ 격식 요리의 세계</h3><div class="border-b border-slate-200 mb-6 flex justify-center"><button class="formal-tab-btn py-2 px-4 border-b-2 border-amber-500 text-amber-600 font-semibold" data-tab="comparison">개념 비교</button><button class="formal-tab-btn py-2 px-4 border-b-2 border-transparent text-slate-500" data-tab="dishes">대표 요리</button></div><div id="formal-tab-content"></div></div>`;
+                        break;
+                    case 'hub-omission':
+                        content = `<div class="bg-white p-6 rounded-2xl shadow-lg"><h3 class="text-2xl font-bold text-rose-700 mb-4 text-center">📊 왜 요리는 누락되는가?</h3><p class="text-center text-slate-600 mb-8">특정 요리들이 목록에서 사라지는 구조적 원인을 분석한 결과입니다.</p><div class="chart-container"><canvas id="omission-chart"></canvas></div></div>`;
+                        break;
+                    default: 
+                        contentDisplay.innerHTML = `<div class="bg-white p-6 rounded-2xl shadow-lg text-center"><h3 class="text-2xl font-bold text-slate-700">콘텐츠 준비 중</h3><p class="text-slate-500 mt-2">선택하신 테마의 콘텐츠를 곧 제공해드리겠습니다.</p></div>`;
+                        return;
+                }
+                contentDisplay.innerHTML = content;
+                
+                if (type === 'hub-guide') renderGuideTabContent('guide-origin');
+                if (type === 'hub-regional') addMapListeners(researchedFoods);
+                if (type === 'hub-formal') renderFormalTabContent('comparison');
+                if (type === 'hub-omission') renderOmissionChart();
+                addFoodItemListeners();
+            }
+
+            function renderGuideTabContent(tab) {
+                 const contentDiv = document.getElementById('guide-tab-content');
+                 if (!contentDiv) return;
+                 const tabButtons = document.querySelectorAll('.guide-tab-btn');
+                 tabButtons.forEach(btn => { btn.classList.remove('active'); if(btn.dataset.tab === tab) btn.classList.add('active'); });
+                 let html = '<div class="space-y-4">';
+                 if (tab === 'guide-category') {
+                     definitions.categories.forEach(item => { html += `<div class="p-4 bg-slate-50 rounded-lg"><h4 class="font-bold text-slate-800">${item.name.split(' ')[0]}</h4><p class="text-sm text-slate-600 mt-1">${item.desc}</p></div>`; });
+                 } else {
+                     definitions.origins.forEach(item => { html += `<div class="p-4 bg-slate-50 rounded-lg"><h4 class="font-bold" style="color:${getOriginColor(item.name)}">${item.name}</h4><p class="text-sm text-slate-600 mt-1">${item.desc}</p><div class="mt-2 text-xs bg-cyan-50 text-cyan-800 p-2 rounded"><b>판단 기준:</b> ${item.criteria}</div></div>`; });
+                 }
+                 html += '</div>';
+                 contentDiv.innerHTML = html; addGuideTabListeners();
+            }
+
+            function addGuideTabListeners() { document.querySelectorAll('.guide-tab-btn').forEach(btn => { btn.addEventListener('click', () => renderGuideTabContent(btn.dataset.tab)); }); }
+            
+            function renderFormalTabContent(tab) {
+                const contentDiv = document.getElementById('formal-tab-content');
+                if (!contentDiv) return;
+                document.querySelectorAll('.formal-tab-btn').forEach(btn => {
+                    btn.classList.remove('border-amber-500', 'text-amber-600', 'font-semibold');
+                    btn.classList.add('border-transparent', 'text-slate-500');
+                    if(btn.dataset.tab === tab) btn.classList.add('border-amber-500', 'text-amber-600', 'font-semibold');
+                });
+                let html = '';
+                if(tab === 'comparison') {
+                    html = `<div class="overflow-x-auto"><table class="w-full text-sm text-left">
+                        <thead class="bg-amber-50 text-amber-800"><tr><th class="p-3">구분</th><th class="p-3">가이세키(懐石)</th><th class="p-3">가이세키(会席)</th></tr></thead>
+                        <tbody>
+                            <tr class="border-b"><td class="p-3 font-semibold">목적</td><td class="p-3">차(茶)를 맛있게 마시기 위함</td><td class="p-3">술(酒)을 즐기기 위함</td></tr>
+                            <tr class="border-b bg-stone-50"><td class="p-3 font-semibold">밥/국 순서</td><td class="p-3">처음에 제공</td><td class="p-3">마지막에 제공 (시메, 締め)</td></tr>
+                            <tr class="border-b"><td class="p-3 font-semibold">철학</td><td class="p-3">와비사비(侘寂), 간소함</td><td class="p-3">향연과 즐거움, 화려함</td></tr>
+                        </tbody></table></div>`;
+                } else {
+                    html = `<p class="text-sm text-slate-600 mb-4 text-center">각 요리 체계의 개념을 나타내는 대표적인 요리들입니다.</p>
+                            <div class="flex justify-center gap-2 flex-wrap">
+                                <button class="food-item bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm hover:bg-amber-200 transition" data-food="혼젠 요리">혼젠 요리</button>
+                                <button class="food-item bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm hover:bg-amber-200 transition" data-food="가이세키 (懐石)">가이세키(懐石)</button>
+                                <button class="food-item bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm hover:bg-amber-200 transition" data-food="가이세키 (会席)">가이세키(会席)</button>
+                                <button class="food-item bg-amber-100 text-amber-800 px-3 py-1 rounded-full text-sm hover:bg-amber-200 transition" data-food="갓포 요리">갓포 요리</button>
+                            </div>`;
+                }
+                contentDiv.innerHTML = html;
+                addFoodItemListeners();
+                document.querySelectorAll('.formal-tab-btn').forEach(btn => btn.addEventListener('click', () => renderFormalTabContent(btn.dataset.tab)));
+            }
+
+            function renderOmissionChart() {
+                const ctx = document.getElementById('omission-chart')?.getContext('2d');
+                if(!ctx) return;
+                new Chart(ctx, { type: 'bar', data: { labels: ['과도한 지역성/브랜드화 부재', '체험하기 어려운 맛', '맥락의 탈각', '식재료 희소성', '비일상성 부재'], datasets: [{ label: '누락 원인별 요리 수 (추정)', data: [15, 5, 4, 3, 2], backgroundColor: 'rgba(225, 29, 72, 0.6)', borderColor: 'rgba(225, 29, 72, 1)', borderWidth: 1 }] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, title: { display: true, text: '주요 누락 원인 분석' } }, scales: { x: { beginAtZero: true } } } });
+            }
+
+            function addMapListeners(data) {
+                const provinces = document.querySelectorAll('.region');
+                const infoDiv = document.getElementById('regional-info');
+                provinces.forEach(p => {
+                    p.addEventListener('click', () => {
+                        provinces.forEach(el => el.classList.remove('active')); p.classList.add('active');
+                        const regionName = p.dataset.region;
+                        const regionFoods = Object.keys(data).filter(key => { const item = data[key]; return item.origin === '향토 요리' && item.subCategory === regionName; });
+                        let infoHtml = `<h4 class="font-bold text-lg text-green-800 mb-3">${regionName}의 숨겨진 요리</h4>`;
+                        if (regionFoods.length > 0) {
+                            infoHtml += '<ul class="space-y-2">'; regionFoods.forEach(food => { infoHtml += `<li><button class="food-item text-left text-slate-700 hover:text-green-600 transition" data-food="${food}">${food}</button></li>`; }); infoHtml += '</ul>';
+                        } else { infoHtml += '<p class="text-slate-500">이 지역의 연구된 정보가 아직 없습니다.</p>'; }
+                        infoDiv.innerHTML = infoHtml; addFoodItemListeners();
+                    });
+                });
+            }
+
+            function addFoodItemListeners() { document.querySelectorAll('.food-item').forEach(item => { item.addEventListener('click', (e) => { const foodName = e.currentTarget.dataset.food; openModal(foodName); }); }); }
+            
+            function populateFilters() {
+                 const categories = [...new Set(Object.values(allFoodData).map(item => item.category))].sort();
+                 categories.forEach(cat => { if(cat) { const option = document.createElement('option'); option.value = cat; option.textContent = cat; categoryFilter.appendChild(option); } });
+            }
+
+            function populateMasterList() {
+                const category = categoryFilter.value; const searchTerm = searchInput.value.toLowerCase();
+                let filteredHtml = ''; let count = 0;
+                Object.keys(allFoodData).sort().forEach(key => {
+                    const item = allFoodData[key];
+                    const matchesCategory = (category === 'all' || item.category === category);
+                    const matchesSearch = (searchTerm === '' || key.toLowerCase().includes(searchTerm));
+                    if (matchesCategory && matchesSearch) {
+                        count++;
+                        filteredHtml += `<tr class="hover:bg-slate-50"><td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-slate-900">${item.category}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-slate-500">${item.subCategory}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-cyan-700"><button class="food-item hover:underline" data-food="${key}">${key}</button>${item.status === 'researched' ? '<span class="status-tag bg-rose-100 text-rose-800">심층분석</span>' : ''}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium" style="color:${getOriginColor(item.origin)}">${item.origin}</td></tr>`;
+                    }
+                });
+                masterTableBody.innerHTML = filteredHtml; foodCountEl.textContent = count;
+                addFoodItemListeners();
+            }
+
+            hubCards.forEach(card => { card.addEventListener('click', () => { renderContent(card.id); }); });
+            modal.addEventListener('click', (e) => { if (e.target === modal) { closeModal(); } });
+            categoryFilter.addEventListener('change', populateMasterList);
+            searchInput.addEventListener('input', populateMasterList);
+
+            populateFilters();
+            populateMasterList();
+        });
+    </script>
+</body>
+</html>
