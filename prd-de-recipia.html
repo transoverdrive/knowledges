@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>레시피 허브 (가칭) - 제품 요구사항 명세서 (PRD) v1.1</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+        .prose {
+            max-width: 800px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        h1, h2, h3, h4 {
+            font-weight: 700;
+            letter-spacing: -0.05em;
+        }
+        .section {
+            margin-bottom: 3rem;
+            padding: 2rem;
+            background-color: #f9fafb;
+            border-radius: 0.75rem;
+            border: 1px solid #e5e7eb;
+        }
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            font-size: 0.875rem;
+            font-weight: 500;
+            border-radius: 9999px;
+        }
+        pre {
+            background-color: #1f2937;
+            color: #d1d5db;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            overflow-x: auto;
+            font-size: 0.875rem;
+        }
+        code {
+            font-family: 'Courier New', Courier, monospace;
+        }
+    </style>
+</head>
+<body class="bg-white text-gray-800">
+
+    <div class="prose px-4 py-12">
+        <header class="text-center mb-12">
+            <span class="text-indigo-600 font-semibold">Phase 1: MVP</span>
+            <h1 class="text-4xl md:text-5xl mt-2 mb-4">레시피 허브: 제품 요구사항 명세서 (PRD)</h1>
+            <p class="text-lg text-gray-600">흩어져 있는 모든 레시피를 한 곳으로, AI와 함께 더 스마트하게 즐기는 요리 경험</p>
+            <p class="text-sm text-gray-500">문서 버전: 1.1</p>
+        </header>
+
+        <div id="overview" class="section">
+            <h2 class="text-2xl border-b pb-2 mb-4">1. Overview</h2>
+            <p>
+                현재 레시피 콘텐츠는 유튜브, 인스타그램, 블로그 등 여러 채널에 파편화되어 있어 사용자들이 마음에 드는 레시피를 발견하더라도 체계적으로 수집하고 관리하기 어렵습니다. 또한, 각기 다른 포맷으로 인해 레시피의 영양 정보, 조리 시간, 재료 목록 등을 한눈에 비교하고 파악하기 힘든 문제를 겪고 있습니다.
+            </p>
+            <p class="mt-2">
+                <strong>'레시피 허브'</strong>는 이러한 문제를 해결하기 위해 탄생했습니다. 사용자가 어떤 채널에서든 원하는 레시피 링크를 저장하면, AI가 해당 레시피를 분석하고 규격화된 포맷으로 변환하여 개인화된 레시피 보관함에 저장해주는 서비스입니다. 이를 통해 사용자는 흩어져 있던 레시피를 한 곳에서 관리하고, 영양 정보 분석, 조리 모드 등 부가 가치를 통해 더욱 편리하고 스마트한 요리 생활을 누릴 수 있습니다.
+            </p>
+        </div>
+
+        <div id="features" class="section">
+            <h2 class="text-2xl border-b pb-2 mb-4">2. Core Features</h2>
+            <div class="space-y-6">
+                <div>
+                    <h3 class="text-xl font-semibold">사용자 인증</h3>
+                    <p class="text-gray-600">카카오 로그인을 통한 간편한 가입 및 로그인을 제공합니다. 카카오싱크를 활용하여 챗봇 등 다양한 채널에서 seamless한 사용자 경험을 구현합니다.</p>
+                </div>
+                <div>
+                    <h3 class="text-xl font-semibold">레시피 클리핑 (Clipping)</h3>
+                    <p class="text-gray-600">블로그, 레시피 사이트, 유튜브, 인스타그램 릴스 등 다양한 포맷의 레시피 URL을 지원합니다. 사용자는 카카오톡 챗봇이나 모바일 앱의 '공유' 기능을 통해 손쉽게 레시피를 저장할 수 있습니다. 동일 URL은 중복 저장하지 않고, 기존 데이터를 사용자와 연결하여 데이터 효율성을 높입니다.</p>
+                </div>
+                 <div>
+                    <h3 class="text-xl font-semibold">AI 규격화 엔진</h3>
+                    <p class="text-gray-600">사용자가 클리핑한 레시피를 LLM과 프롬프트 엔지니어링을 통해 분석하고 정형 데이터로 변환합니다. 이를 통해 레시피 이름, 재료, 조리 시간, 영양 정보, 요리 분류, 식단 분류 등 일관된 데이터를 구축합니다.</p>
+                </div>
+                <div>
+                    <h3 class="text-xl font-semibold">레시피 보관 및 관리</h3>
+                    <p class="text-gray-600">사용자는 클리핑한 레시피를 자신만의 보관함에 저장하고, 여러 하위 폴더를 생성하여 체계적으로 관리할 수 있습니다. 클리핑 시에는 'Default' 폴더에 우선 저장되어 사용 편의성을 높입니다.</p>
+                </div>
+                <div>
+                    <h3 class="text-xl font-semibold">레시피 상세 페이지</h3>
+                    <p class="text-gray-600">규격화된 모든 레시피 정보를 보여줍니다. 특히, 조리 재료 목록에는 쿠팡 파트너스와 같은 어필리에이트 링크를 연동하여 수익 모델을 구축합니다.</p>
+                </div>
+                <div>
+                    <h3 class="text-xl font-semibold">조리 모드 (Cooking Mode)</h3>
+                    <p class="text-gray-600">요리 중 화면 터치가 어려운 사용자를 위해, 단계별 음성 컨트롤(예: "다음", "이전")을 통해 레시피를 확인하고 유튜브 영상 재생을 제어할 수 있는 핸즈프리 모드를 제공합니다.</p>
+                </div>
+                 <div>
+                    <h3 class="text-xl font-semibold">관리자 기능</h3>
+                    <p class="text-gray-600">레시피 재료에 대한 어필리에이트 링크 관리 및 AI 엔진의 레시피 수집 성공/실패 로그를 조회할 수 있는 기능을 제공하여 운영 효율을 확보합니다.</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="ux" class="section">
+            <h2 class="text-2xl border-b pb-2 mb-4">3. User Experience</h2>
+            <div>
+                <h3 class="text-xl font-semibold">User Persona</h3>
+                <p class="text-gray-600">SNS(유튜브, 인스타그램)와 블로그 등 온라인 채널을 통해 요리 아이디어를 얻고, 직접 요리하는 것을 즐기는 20-40대 남녀. 디지털 기기 사용에 익숙하며, 흩어진 정보를 한 곳에 모아 효율적으로 관리하려는 니즈가 강하다.</p>
+            </div>
+            <div class="mt-6">
+                <h3 class="text-xl font-semibold">Key User Flows</h3>
+                <ol class="list-decimal list-inside space-y-2 text-gray-600">
+                    <li><strong>회원가입 및 온보딩:</strong> 카카오 계정으로 1초 만에 로그인하고 서비스의 핵심 기능을 간략히 안내받는다.</li>
+                    <li><strong>레시피 클리핑:</strong> 유튜브를 보다가 마음에 드는 레시피를 발견하고 '공유' 버튼을 눌러 레시피 허브 앱(또는 카톡 채널)으로 전송한다.</li>
+                    <li><strong>레시피 확인:</strong> 앱을 열어 'My 보관함'의 Default 폴더에 방금 저장한 레시피가 AI에 의해 분석/요약된 것을 확인한다.</li>
+                    <li><strong>레시피 탐색 및 정리:</strong> '한식', '다이어트식' 등 개인적인 폴더를 만들어 레시피를 이동시켜 정리한다.</li>
+                    <li><strong>요리 시작:</strong> 특정 레시피를 선택하고 '조리 모드'를 실행하여 음성 명령으로 편하게 요리를 진행한다.</li>
+                </ol>
+            </div>
+        </div>
+        
+        <div id="tech" class="section">
+            <h2 class="text-2xl border-b pb-2 mb-4">4. Technical Architecture (Cloudflare-Native)</h2>
+            <div class="mb-6">
+                <h3 class="text-xl font-semibold mb-2">설계 원칙</h3>
+                <ul class="list-disc list-inside text-gray-600">
+                    <li><strong>Go to the Edge:</strong> 사용자와 가장 가까운 엣지에서 코드를 실행하여 압도적인 반응 속도를 제공합니다.</li>
+                    <li><strong>Managed & Serverless:</strong> 서버 관리가 필요 없는 완전 관리형/서버리스 서비스를 사용하여 개발 및 운영의 복잡성을 최소화합니다.</li>
+                    <li><strong>Cost-Effective:</strong> 관대한 무료 제공량과 R2의 제로 이그레스 비용 정책을 통해 운영 비용을 획기적으로 절감합니다.</li>
+                </ul>
+            </div>
+            <div class="space-y-4">
+                <h3 class="text-xl font-semibold mb-2">제안 인프라 상세</h3>
+                 <p><strong class="w-36 inline-block">✅ Frontend:</strong> <span class="badge bg-blue-100 text-blue-800">Remix</span> on <span class="badge bg-orange-100 text-orange-800">Cloudflare Pages</span><br><span class="text-sm text-gray-600 ml-38">엣지에서 직접 실행되는 로더/액션으로 최고의 성능을 제공하며, Git 연동으로 배포를 자동화합니다.</span></p>
+                <p><strong class="w-36 inline-block">✅ Backend & AI Worker:</strong> <span class="badge bg-yellow-100 text-yellow-800">Python</span> on <span class="badge bg-orange-100 text-orange-800">Cloudflare Workers</span><br><span class="text-sm text-gray-600 ml-38">모든 API 로직과 비동기 AI 분석 작업을 서버리스 환경에서 수행하여 높은 성능과 확장성을 보장합니다.</span></p>
+                <p><strong class="w-36 inline-block">✅ RDB:</strong> <span class="badge bg-orange-100 text-orange-800">Cloudflare D1</span> (SQLite-based)<br><span class="text-sm text-gray-600 ml-38">사용자, 레시피 등 정형 데이터를 저장하는 서버리스 SQL 데이터베이스입니다. Worker와의 연동성이 뛰어납니다.</span></p>
+                <p><strong class="w-36 inline-block">✅ Vector DB:</strong> <span class="badge bg-orange-100 text-orange-800">Cloudflare Vectorize</span><br><span class="text-sm text-gray-600 ml-38">의미 기반 검색 및 AI 추천을 위한 벡터 임베딩을 저장합니다. 외부 서비스 없이 Cloudflare 생태계 내에서 해결합니다.</span></p>
+                <p><strong class="w-36 inline-block">✅ Asynchronous Queue:</strong> <span class="badge bg-orange-100 text-orange-800">Cloudflare Queues</span><br><span class="text-sm text-gray-600 ml-38">시간이 오래 걸리는 레시피 클리핑/분석 작업을 백그라운드에서 처리하여 사용자 경험을 향상시킵니다.</span></p>
+                <p><strong class="w-36 inline-block">✅ Storage:</strong> <span class="badge bg-orange-100 text-orange-800">Cloudflare R2</span><br><span class="text-sm text-gray-600 ml-38">영상, 이미지 등 대용량 파일을 저장합니다. 데이터 전송 비용(Egress Fee)이 0원이므로 비용을 크게 절감할 수 있습니다.</span></p>
+            </div>
+        </div>
+
+        <div id="devops" class="section">
+            <h2 class="text-2xl border-b pb-2 mb-4">5. Development & Operations (개발 및 운영)</h2>
+            
+            <div class="mb-6">
+                <h3 class="text-xl font-semibold mb-2">배포 환경 (CI/CD with GitHub)</h3>
+                <p class="text-gray-600">GitHub Actions를 활용하여 `main` 브랜치에 코드가 푸시되면 자동으로 프론트엔드와 백엔드가 Cloudflare에 배포되는 CI/CD 파이프라인을 구축합니다.</p>
+                <h4 class="font-semibold mt-4 mb-2">Frontend (Remix on Pages)</h4>
+                <p class="text-gray-600 text-sm">Cloudflare 대시보드에서 GitHub 저장소를 연결하는 것만으로 자동 배포가 설정됩니다. 별도의 설정 파일이 거의 필요 없습니다.</p>
+                <h4 class="font-semibold mt-4 mb-2">Backend (Python on Workers)</h4>
+                <p class="text-gray-600 text-sm">`.github/workflows/deploy.yml` 파일을 통해 배포를 자동화합니다.</p>
+                <pre><code>name: Deploy Worker
+on:
+  push:
+    branches: [ "main" ]
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install -g wrangler
+      - run: wrangler deploy backend/src/index.py --name my-recipe-backend
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}</code></pre>
+            </div>
+
+            <div>
+                <h3 class="text-xl font-semibold mb-2">로컬 개발 환경</h3>
+                <p class="text-gray-600">Cloudflare의 CLI 도구인 `wrangler`를 사용하여 실제 운영 환경과 거의 동일한 환경을 로컬에서 시뮬레이션할 수 있습니다.</p>
+                <h4 class="font-semibold mt-4 mb-2">핵심 도구 및 명령어</h4>
+                 <ul class="list-disc list-inside ml-4 text-gray-600 text-sm">
+                     <li><strong>필수 도구:</strong> Node.js, Python, `wrangler` CLI</li>
+                     <li><strong>프론트엔드 실행:</strong> (frontend 폴더에서) `npm run dev`</li>
+                     <li><strong>백엔드 실행:</strong> (프로젝트 루트에서) `wrangler dev backend/src/index.py --local`</li>
+                 </ul>
+                 <h4 class="font-semibold mt-4 mb-2">`wrangler.toml` 설정 예시</h4>
+                 <p class="text-gray-600 text-sm">이 설정 파일을 통해 로컬 개발 시 D1, R2, Vectorize 등 Cloudflare 서비스들을 로컬 파일 시스템에 에뮬레이션하여 사용할 수 있습니다.</p>
+                 <pre><code># wrangler.toml
+name = "my-recipe-backend"
+main = "backend/src/index.py"
+compatibility_date = "2025-06-27"
+compatibility_flags = ["python_workers"]
+
+# D1 데이터베이스 로컬 바인딩
+[[d1_databases]]
+binding = "DB"
+database_name = "recipe-db-production"
+database_id = "YOUR_PRODUCTION_DB_ID"
+preview_database_id = "YOUR_PREVIEW_DB_ID"
+
+# R2 스토리지 로컬 바인딩
+[[r2_buckets]]
+binding = "R2_BUCKET"
+bucket_name = "recipe-videos-production"
+preview_bucket_name = "recipe-videos-preview"
+
+# ... (Vectorize, Queues 등 다른 서비스 바인딩) ...
+</code></pre>
+            </div>
+        </div>
+
+        <div id="risks" class="section">
+            <h2 class="text-2xl border-b pb-2 mb-4">6. Risks and Mitigations</h2>
+            <div class="space-y-4">
+                <div>
+                    <p><strong class="text-red-600">Risk:</strong> AI 규격화 결과의 일관성 및 정확도 저하</p>
+                    <p><strong class="text-green-600">Mitigation:</strong> 초기에는 주요 레시피 사이트 몇 개에 집중하여 프롬프트 최적화. Few-shot 러닝 적용 및 지속적인 결과 모니터링. 실패 로그를 바탕으로 프롬프트 개선. 초기에는 관리자가 수정할 수 있는 기능 도입 고려.</p>
+                </div>
+                 <div>
+                    <p><strong class="text-red-600">Risk:</strong> 저작권 이슈 및 콘텐츠 원작자의 반발</p>
+                    <p><strong class="text-green-600">Mitigation:</strong> 서비스를 '개인용 스크랩/북마크' 툴로 명확히 포지셔닝. 모든 결과물에 원본 출처를 명확하고 눈에 띄게 표기. 전체 콘텐츠 복제가 아닌, 분석/요약된 '데이터'를 보여주는 데 집중. 향후 파트너십 모델로 전환 모색.</p>
+                </div>
+                 <div>
+                    <p><strong class="text-red-600">Risk:</strong> Cloudflare 신규 서비스의 안정성 (예: D1, Vectorize)</p>
+                    <p><strong class="text-green-600">Mitigation:</strong> Cloudflare의 공식 문서를 통해 서비스의 베타/정식 출시 여부와 제약 사항을 명확히 파악. 중요 데이터는 R2에 주기적으로 백업하는 전략 고려. 커뮤니티와 블로그를 통해 실제 사용 사례 및 문제 해결 방법을 지속적으로 학습.</p>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+
+</body>
+</html>
