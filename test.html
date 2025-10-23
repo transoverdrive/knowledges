@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>보은/은혜 이미지 뷰어</title>
+  <link rel="preconnect" href="https://soda1.org" crossorigin>
+  <style>
+    :root { --gap: 14px; }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans KR", sans-serif; color: #222; background: #fff; }
+    header, footer { padding: 12px 16px; border-bottom: 1px solid #eee; background: #fafafa; }
+    footer { border-top: 1px solid #eee; border-bottom: none; }
+    .bar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; justify-content: space-between; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    button {
+      font-size: 16px; padding: 10px 16px; border: 1px solid #ddd; background: #fff;
+      border-radius: 10px; cursor: pointer; transition: background .15s, border-color .15s;
+    }
+    button:hover { background: #f3f3f3; border-color: #ccc; }
+    button:disabled { opacity: .55; cursor: not-allowed; }
+    main { max-width: 980px; margin: 0 auto; padding: 16px; }
+    .status { font-size: 14px; color: #666; }
+    .gallery { display: grid; grid-template-columns: 1fr; gap: var(--gap); }
+    .gallery img { width: 100%; height: auto; display: block; border-radius: 10px; background: #f2f2f2; }
+    .empty { padding: 28px 16px; text-align: center; color: #777; background: #f9f9f9; border: 1px dashed #e5e5e5; border-radius: 10px; }
+    .warn { padding: 12px 16px; margin: 12px 0; border-radius: 10px; background: #fff3cd; color: #6b5a00; border: 1px solid #ffe69c; }
+    progress { width: 220px; height: 10px; vertical-align: middle; }
+    @media (prefers-color-scheme: dark) {
+      body { background: #0b0b0b; color: #e8e8e8; }
+      header, footer { background: #101010; border-color: #222; }
+      button { background: #141414; border-color: #2a2a2a; color: #e8e8e8; }
+      button:hover { background: #191919; border-color: #333; }
+      .status { color: #aaa; }
+      .gallery img { background: #171717; }
+      .empty { color: #aaa; background: #121212; border-color: #242424; }
+      .warn { background: #3b3000; color: #ffe9a6; border-color: #6b5a00; }
+    }
+  </style>
+</head>
+<body>
+  <!-- 상단 바 (스크롤 고정 아님) -->
+  <header>
+    <div class="bar">
+      <div class="actions">
+        <button id="top-boeun" type="button">보은</button>
+        <button id="top-eunhye" type="button">은혜</button>
+      </div>
+      <div class="status" id="status" aria-live="polite">버튼을 눌러 이미지를 불러오세요.</div>
+    </div>
+  </header>
+
+  <main>
+    <div id="webpWarning" class="warn" style="display:none"></div>
+    <div id="gallery" class="gallery" aria-live="polite">
+      <div class="empty" id="placeholder">아직 불러온 이미지가 없습니다.</div>
+    </div>
+  </main>
+
+  <!-- 하단 바 (스크롤 고정 아님) -->
+  <footer>
+    <div class="bar">
+      <div class="actions">
+        <button id="bottom-boeun" type="button">보은</button>
+        <button id="bottom-eunhye" type="button">은혜</button>
+      </div>
+      <div class="status" id="foot-status"></div>
+    </div>
+  </footer>
+
+  <script>
+    // ===== 설정 =====
+    const MAX_INDEX = 300;
+    const CONCURRENCY = 10;          // 동시 확인 개수
+    const BASE = "https://soda1.org/"; // 끝에 / 유지
+    const WORDS = { boeun: "보은", eunhye: "은혜" };
+
+    // ===== 상태 =====
+    let generation = 0;
+    let currentAbort = null;
+    const $status = document.getElementById("status");
+    const $footStatus = document.getElementById("foot-status");
+    const $gallery = document.getElementById("gallery");
+    const $placeholder = document.getElementById("placeholder");
+    const $webpWarning = document.getElementById("webpWarning");
+
+    // ===== 유틸 =====
+    const id = (s) => document.getElementById(s);
+    const makeUrl = (word, i) => new URL(`${word}${i}.webp`, BASE).toString();
+
+    function setBusy(isBusy) {
+      for (const el of ["top-boeun","top-eunhye","bottom-boeun","bottom-eunhye"].map(id)) {
+        el.disabled = isBusy;
+      }
+    }
+    function clearGallery() {
+      $gallery.innerHTML = "";
+      $gallery.appendChild($placeholder);
+      $placeholder.style.display = "block";
+    }
+    function updateStatus(word, found, checked) {
+      const text = `${word} 이미지 불러오는 중… ${found}개 확인됨 / ${checked}/${MAX_INDEX}`;
+      $status.textContent = text;
+      $footStatus.textContent = text;
+    }
+
+    // WebP 지원 여부 체크
+    async function checkWebpSupport() {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => resolve(img.width > 0 && img.height > 0);
+        img.onerror = () => resolve(false);
+        // 최소 1px WebP
+        img.src = "data:image/webp;base64,UklGRiIAAABXRUJQVlA4TCEAAAAvAAAAAAfQ//73v/+BiOh/AAA=";
+      });
+    }
+
+    // 이미지 미리 로드 (기본 referrer → 실패 시 no-referrer 재시도)
+    function preloadWithRetry(url, signal) {
+      return new Promise((resolve) => {
+        let attempt = 0;
+        const tryOnce = () => {
+          if (signal?.aborted) return resolve(null);
+          const img = new Image();
+          img.decoding = "async";
+          img.loading = "lazy";
+          img.crossOrigin = "anonymous"; // 안전한 기본값(필수는 아님)
+          img.alt = "";
+          img.style.width = "100%";
+          img.style.height = "auto";
+          img.draggable = false;
+
+          if (attempt === 1) {
+            // 2차 시도: referrer 제거 (서버가 기본값을 막는 경우)
+            img.referrerPolicy = "no-referrer";
+          }
+
+          let finished = false;
+          const done = (ok) => { if (!finished) { finished = true; resolve(ok ? img : null); } };
+
+          if (signal) signal.addEventListener("abort", () => done(false), { once: true });
+          img.onload = () => done(true);
+          img.onerror = () => {
+            if (attempt === 0) { attempt = 1; tryOnce(); } else { done(false); }
+          };
+          img.src = url + (attempt ? `?r=${Date.now()}` : ""); // 캐시 우회
+        };
+        tryOnce();
+      });
+    }
+
+    async function processWithConcurrency(items, handler, { concurrency = CONCURRENCY, signal } = {}) {
+      let i = 0;
+      const workers = Array.from({ length: concurrency }, async () => {
+        while (i < items.length && !(signal && signal.aborted)) {
+          const idx = i++;
+          await handler(items[idx], idx);
+        }
+      });
+      await Promise.all(workers);
+    }
+
+    async function loadWord(word) {
+      const myGen = ++generation;
+      if (currentAbort) currentAbort.abort();
+      const controller = new AbortController();
+      currentAbort = controller;
+      const { signal } = controller;
+
+      setBusy(true);
+      clearGallery();
+
+      // WebP 미지원 안내
+      const webpOK = await checkWebpSupport();
+      if (!webpOK) {
+        $webpWarning.style.display = "block";
+        $webpWarning.textContent = "이 브라우저는 WebP 이미지를 지원하지 않습니다. Chrome/Edge/Firefox 최신버전 또는 iOS 14+ Safari에서 열어주세요.";
+      } else {
+        $webpWarning.style.display = "none";
+      }
+
+      let found = 0, checked = 0;
+      const urls = Array.from({ length: MAX_INDEX }, (_, k) => makeUrl(word, k + 1));
+
+      const $progress = document.createElement("progress");
+      $progress.max = urls.length;
+      $progress.value = 0;
+      $status.textContent = "";
+      $status.appendChild($progress);
+      $footStatus.textContent = "";
+
+      await processWithConcurrency(urls, async (url, idx) => {
+        if (signal.aborted || myGen !== generation) return;
+
+        const img = await preloadWithRetry(url, signal);
+        checked++;
+        $progress.value = checked;
+
+        if (img && !signal.aborted && myGen === generation) {
+          if ($placeholder.parentNode) $placeholder.style.display = "none";
+          img.addEventListener("error", (e) => e.currentTarget.remove());
+          img.setAttribute("alt", `${word} ${idx + 1}`);
+          $gallery.appendChild(img);
+          found++;
+        }
+        if (checked % 5 === 0) updateStatus(word, found, checked);
+      }, { concurrency: CONCURRENCY, signal });
+
+      if (myGen !== generation) return;
+
+      setBusy(false);
+      if (found === 0) {
+        $placeholder.style.display = "block";
+        $placeholder.textContent = `${word} 이미지가 없습니다. (1–${MAX_INDEX})`;
+        $status.textContent = `${word} 이미지 0개`;
+        $footStatus.textContent = $status.textContent;
+      } else {
+        $status.textContent = `${word} 이미지 ${found}개 표시됨.`;
+        $footStatus.textContent = $status.textContent;
+      }
+    }
+
+    // 버튼
+    id("top-boeun").addEventListener("click", () => loadWord(WORDS.boeun));
+    id("top-eunhye").addEventListener("click", () => loadWord(WORDS.eunhye));
+    id("bottom-boeun").addEventListener("click", () => loadWord(WORDS.boeun));
+    id("bottom-eunhye").addEventListener("click", () => loadWord(WORDS.eunhye));
+  </script>
+</body>
+</html>
