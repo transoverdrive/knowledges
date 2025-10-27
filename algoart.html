@@ -1,391 +1,748 @@
-<!doctype html>
-<html lang="ko">
+<!DOCTYPE html>
+<html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <title>Algorithmic Stream of Choices – Branching</title>
-  <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
-  <style>
-    :root { color-scheme: light only; }
-    html, body { height: 100%; }
-    body {
-      margin: 0;
-      background: #fff; /* 흰색 배경 */
-      overflow: hidden;
-      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, Apple SD Gothic Neo, Noto Sans, "Malgun Gothic", sans-serif;
-    }
-    canvas { display: block; }
-    .hud {
-      position: fixed; inset: 0 auto auto 0;
-      margin: 14px 0 0 14px;
-      padding: 8px 10px;
-      background: rgba(255,255,255,.85);
-      border: 1px solid rgba(0,0,0,.08);
-      border-radius: 8px;
-      backdrop-filter: blur(6px);
-      font-size: 12px; line-height: 1.4;
-      color: #111; user-select: none; pointer-events: none;
-      box-shadow: 0 8px 20px rgba(0,0,0,.06);
-    }
-    .hud b{font-weight:600;}
-    @media (prefers-reduced-motion: reduce) { .hud { display:none; } }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Life Streams - Generative Art</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Lora:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --anthropic-dark: #141413;
+            --anthropic-light: #faf9f5;
+            --anthropic-mid-gray: #b0aea5;
+            --anthropic-light-gray: #e8e6dc;
+            --anthropic-orange: #d97757;
+            --anthropic-blue: #6a9bcc;
+            --anthropic-green: #788c5d;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background: linear-gradient(135deg, var(--anthropic-light) 0%, #f5f3ee 100%);
+            min-height: 100vh;
+            color: var(--anthropic-dark);
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .sidebar {
+            width: 320px;
+            flex-shrink: 0;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 24px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.1);
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .sidebar h1 {
+            font-family: 'Lora', serif;
+            font-size: 24px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .sidebar .subtitle {
+            color: var(--anthropic-mid-gray);
+            font-size: 14px;
+            margin-bottom: 32px;
+            line-height: 1.4;
+        }
+
+        .control-section {
+            margin-bottom: 32px;
+        }
+
+        .control-section h3 {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--anthropic-dark);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .control-section h3::before {
+            content: '•';
+            color: var(--anthropic-orange);
+            font-weight: bold;
+        }
+
+        .seed-input {
+            width: 100%;
+            background: var(--anthropic-light);
+            padding: 12px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            margin-bottom: 12px;
+            border: 1px solid var(--anthropic-light-gray);
+            text-align: center;
+        }
+
+        .seed-input:focus {
+            outline: none;
+            border-color: var(--anthropic-orange);
+            box-shadow: 0 0 0 2px rgba(217, 119, 87, 0.1);
+            background: white;
+        }
+
+        .seed-controls {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group label {
+            display: block;
+            font-size: 14px;
+            font-weight: 500;
+            color: var(--anthropic-dark);
+            margin-bottom: 8px;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .slider-container input[type="range"] {
+            flex: 1;
+            height: 4px;
+            background: var(--anthropic-light-gray);
+            border-radius: 2px;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .slider-container input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+            background: #c86641;
+        }
+
+        .slider-container input[type="range"]::-moz-range-thumb {
+            width: 16px;
+            height: 16px;
+            background: var(--anthropic-orange);
+            border-radius: 50%;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .value-display {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+            min-width: 60px;
+            text-align: right;
+        }
+
+        .color-group {
+            margin-bottom: 16px;
+        }
+
+        .color-group label {
+            display: block;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+            margin-bottom: 4px;
+        }
+
+        .color-picker-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .color-picker-container input[type="color"] {
+            width: 32px;
+            height: 32px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            background: none;
+            padding: 0;
+        }
+
+        .color-value {
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: var(--anthropic-mid-gray);
+        }
+
+        .button {
+            width: 100%;
+            padding: 12px 20px;
+            background: var(--anthropic-dark);
+            color: var(--anthropic-light);
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .button:hover {
+            background: #2a2a28;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(20, 20, 19, 0.2);
+        }
+
+        .button-secondary {
+            background: var(--anthropic-light-gray);
+            color: var(--anthropic-dark);
+        }
+
+        .button-secondary:hover {
+            background: #d4d2c7;
+        }
+
+        .button-row {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .button-row .button {
+            flex: 1;
+        }
+
+        .canvas-area {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(20, 20, 19, 0.1);
+            padding: 20px;
+            position: relative;
+        }
+
+        #canvas-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: var(--anthropic-mid-gray);
+            font-size: 14px;
+        }
+
+        .info-text {
+            margin-top: 12px;
+            padding: 12px;
+            background: var(--anthropic-light);
+            border-radius: 8px;
+            font-size: 13px;
+            color: var(--anthropic-mid-gray);
+            line-height: 1.6;
+        }
+    </style>
 </head>
 <body>
-  <canvas id="c"></canvas>
-  <div class="hud">
-    <div><b>Algorithmic Stream of Choices</b></div>
-    <div>Click: more branching + stronger ripple</div>
-  </div>
+    <div class="container">
+        <div class="sidebar">
+            <h1>Life Streams</h1>
+            <p class="subtitle">인생의 선택과 가능성을 표현하는 알고리즘 아트</p>
 
-  <script>
-  (() => {
-    // ====== Tunables ======
-    const FLOW_DIR = 1;        // +1: 왼→오 (과거가 왼쪽으로 사라짐)
-    const BASE_SPEED = 90;     // px/sec
-    const DX = 1.6;            // 샘플 간격(px) — 작을수록 더 매끈(연산량↑)
-    const BASE_BRANCH_RATE = 0.0012; // 분기 기본률(프레임당 스케일)
-    const CLICK_BRANCH_BOOST = 12;   // 클릭 시 분기 강화 배수
-    const RIPPLE_DECAY = 0.983;      // 클릭 리플 감쇠
-    const RIPPLE_S = 0.07;           // 리플 공간 주파수(스트림 s축)
-    const RIPPLE_T = 3.6;            // 리플 시간 주파수
-    const MARGIN = 20;               // 상하 여백
+            <!-- Seed Section -->
+            <div class="control-section">
+                <h3>Seed</h3>
+                <input type="number" id="seed-input" class="seed-input" value="12345" onchange="updateSeed()">
+                <div class="seed-controls">
+                    <button class="button button-secondary" onclick="previousSeed()">Previous</button>
+                    <button class="button button-secondary" onclick="nextSeed()">Next</button>
+                </div>
+                <button class="button button-secondary" onclick="randomSeedAndUpdate()">Random</button>
+            </div>
 
-    // 스타일
-    const THIN_MIN = 0.65, THIN_MAX = 1.4;
+            <!-- Parameters Section -->
+            <div class="control-section">
+                <h3>Parameters</h3>
 
-    // ====== Canvas ======
-    const canvas = document.getElementById('c');
-    const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
-    let W=0, H=0, DPR=1, timeGradient=null;
+                <div class="control-group">
+                    <label>Branch Frequency</label>
+                    <div class="slider-container">
+                        <input type="range" id="branchFrequency" min="0.001" max="0.01" step="0.001" value="0.003" oninput="updateParam('branchFrequency', this.value)">
+                        <span class="value-display" id="branchFrequency-value">0.003</span>
+                    </div>
+                </div>
 
-    function makeTimeGradient(){
-      const g = ctx.createLinearGradient(0,0,W,0);
-      // 왼쪽(과거) 아주 옅게 → 오른쪽(현재/미래) 진하게
-      g.addColorStop(0.00, 'rgba(0,0,0,0.05)');
-      g.addColorStop(0.40, 'rgba(0,0,0,0.25)');
-      g.addColorStop(0.80, 'rgba(0,0,0,0.55)');
-      g.addColorStop(1.00, 'rgba(0,0,0,0.90)');
-      return g;
-    }
+                <div class="control-group">
+                    <label>Stream Speed</label>
+                    <div class="slider-container">
+                        <input type="range" id="streamSpeed" min="0.5" max="3" step="0.1" value="1.5" oninput="updateParam('streamSpeed', this.value)">
+                        <span class="value-display" id="streamSpeed-value">1.5</span>
+                    </div>
+                </div>
 
-    function resize(){
-      DPR = Math.max(1, Math.floor(window.devicePixelRatio||1));
-      W = canvas.clientWidth = window.innerWidth;
-      H = canvas.clientHeight = window.innerHeight;
-      canvas.width = W * DPR; canvas.height = H * DPR;
-      ctx.setTransform(DPR,0,0,DPR,0,0);
-      ctx.lineCap='round'; ctx.lineJoin='round';
-      timeGradient = makeTimeGradient();
-    }
-    window.addEventListener('resize', resize, {passive:true});
-    resize();
+                <div class="control-group">
+                    <label>Wave Amplitude</label>
+                    <div class="slider-container">
+                        <input type="range" id="waveAmplitude" min="5" max="50" step="1" value="20" oninput="updateParam('waveAmplitude', this.value)">
+                        <span class="value-display" id="waveAmplitude-value">20</span>
+                    </div>
+                </div>
 
-    // ====== Utils & Noise ======
-    const rand = (a=0,b=1)=>a+Math.random()*(b-a);
-    const randInt=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
-    const clamp=(v,mi,ma)=>Math.max(mi,Math.min(ma,v));
-    const lerp=(a,b,t)=>a+(b-a)*t;
-    const smoothstep=t=>t*t*(3-2*t);
+                <div class="control-group">
+                    <label>Wave Frequency</label>
+                    <div class="slider-container">
+                        <input type="range" id="waveFrequency" min="0.01" max="0.1" step="0.01" value="0.03" oninput="updateParam('waveFrequency', this.value)">
+                        <span class="value-display" id="waveFrequency-value">0.03</span>
+                    </div>
+                </div>
 
-    function hash(n){
-      n=(n<<13)^n;
-      return (1.0-((n*(n*n*15731+789221)+1376312589)&0x7fffffff)/1073741824.0);
-    }
-    function grad(i,seed){ return hash(i*374761393 + seed*668265263); }
-    function noise1D(x, seed=1337, scale=1){
-      const xf = x*scale;
-      const i0 = Math.floor(xf), f = xf - i0;
-      const g0 = grad(i0,seed), g1 = grad(i0+1,seed);
-      const n0 = g0 * f, n1 = g1 * (f - 1.0);
-      return lerp(n0,n1,smoothstep(f)); // [-~0.5, ~0.5]
-    }
-    function fbm1D(x, seed, baseScale, oct=3, gain=0.5, lac=2.02){
-      let amp=1, sc=baseScale, sum=0, norm=0;
-      for(let i=0;i<oct;i++){
-        sum += amp * noise1D(x, seed+i*101, sc);
-        norm += amp; amp*=gain; sc*=lac;
-      }
-      return sum/(norm||1);
-    }
+                <div class="control-group">
+                    <label>Noise Scale</label>
+                    <div class="slider-container">
+                        <input type="range" id="noiseScale" min="0.001" max="0.01" step="0.001" value="0.005" oninput="updateParam('noiseScale', this.value)">
+                        <span class="value-display" id="noiseScale-value">0.005</span>
+                    </div>
+                </div>
 
-    // ====== Global state ======
-    let now = performance.now()/1000;
-    let last = now;
-    let offsetS = 0;
-    let speed = BASE_SPEED;
-    let rippleEnergy = 0;
-    let branchBoostEnergy = 0;
+                <div class="control-group">
+                    <label>Branch Angle</label>
+                    <div class="slider-container">
+                        <input type="range" id="branchAngle" min="10" max="60" step="5" value="25" oninput="updateParam('branchAngle', this.value)">
+                        <span class="value-display" id="branchAngle-value">25</span>
+                    </div>
+                </div>
+            </div>
 
-    function toScreenX(s){
-      return FLOW_DIR===1 ? (s - offsetS) : (W - (s - offsetS));
-    }
+            <!-- Colors Section -->
+            <div class="control-section">
+                <h3>Colors</h3>
+                
+                <div class="color-group">
+                    <label>Primary Color</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color1" value="#40e0d0" onchange="updateColor('color1', this.value)">
+                        <span class="color-value" id="color1-value">#40e0d0</span>
+                    </div>
+                </div>
 
-    // ====== Branch class (with true branching blend) ======
-    class Branch {
-      constructor(opts){
-        this.birthS = opts.birthS;
-        this.startY = opts.startY;
-        this.parent = opts.parent ?? null;
+                <div class="color-group">
+                    <label>Secondary Color</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color2" value="#00ced1" onchange="updateColor('color2', this.value)">
+                        <span class="color-value" id="color2-value">#00ced1</span>
+                    </div>
+                </div>
 
-        // 분리 전 부모와 함께 달리는 길이(px)
-        this.blendLen = opts.blendLen ?? rand(60, 140);
+                <div class="color-group">
+                    <label>Accent Color</label>
+                    <div class="color-picker-container">
+                        <input type="color" id="color3" value="#5fd3d3" onchange="updateColor('color3', this.value)">
+                        <span class="color-value" id="color3-value">#5fd3d3</span>
+                    </div>
+                </div>
+            </div>
 
-        // 곡률/드리프트
-        this.drift = rand(-0.028, 0.028);
-        this.curve = rand(-0.00005, 0.00005); // 아주 느린 포물선성
+            <!-- Actions Section -->
+            <div class="control-section">
+                <h3>Actions</h3>
+                <div class="button-row">
+                    <button class="button" onclick="resetParameters()">Reset</button>
+                </div>
+                <p class="info-text">💡 캔버스를 클릭하여 새로운 분기를 생성하세요!</p>
+            </div>
+        </div>
 
-        // 라인 스타일
-        this.lineW = clamp((opts.lineW ?? rand(THIN_MIN, THIN_MAX)), THIN_MIN, THIN_MAX);
-        this.baseAlpha = rand(0.65, 1.0);
+        <!-- Main Canvas Area -->
+        <div class="canvas-area">
+            <div id="canvas-container">
+                <div class="loading">Initializing Life Streams...</div>
+            </div>
+        </div>
+    </div>
 
-        // 고유 패턴(무드) 설정
-        this.seed = randInt(1,1e9);
-        this.mood = ['meander','tremor','swell','braid'][randInt(0,3)];
+    <script>
+        // ═══════════════════════════════════════════════════════════════════════
+        // GENERATIVE ART PARAMETERS
+        // ═══════════════════════════════════════════════════════════════════════
 
-        // 각 무드에 따른 옥타브/주파수/진폭/시간속도
-        if(this.mood==='meander'){
-          this.ampSlow = rand(18, 35);
-          this.ampMid  = rand(8, 18);
-          this.ampFast = rand(2, 8);
-          this.scaleSlow = rand(0.0012, 0.0025);
-          this.scaleMid  = rand(0.0035, 0.006);
-          this.scaleFast = rand(0.009,  0.018);
-          this.tSlow = rand(0.10, 0.22);
-          this.tMid  = rand(0.4,  0.8);
-          this.tFast = rand(0.9,  1.8);
-        } else if(this.mood==='tremor'){
-          this.ampSlow = rand(10, 18);
-          this.ampMid  = rand(12, 24);
-          this.ampFast = rand(10, 18);
-          this.scaleSlow = rand(0.0015, 0.003);
-          this.scaleMid  = rand(0.006,  0.012);
-          this.scaleFast = rand(0.018,  0.03);
-          this.tSlow = rand(0.15, 0.3);
-          this.tMid  = rand(0.8,  1.4);
-          this.tFast = rand(1.8,  3.2);
-        } else if(this.mood==='swell'){
-          this.ampSlow = rand(28, 48);
-          this.ampMid  = rand(5, 12);
-          this.ampFast = rand(1,  5);
-          this.scaleSlow = rand(0.0008, 0.0016);
-          this.scaleMid  = rand(0.003,  0.006);
-          this.scaleFast = rand(0.012,  0.02);
-          this.tSlow = rand(0.06, 0.14);
-          this.tMid  = rand(0.35, 0.7);
-          this.tFast = rand(0.8,  1.4);
-        } else { // braid : 서로 다른 위상/사인성 섞임
-          this.ampSlow = rand(18, 32);
-          this.ampMid  = rand(8, 18);
-          this.ampFast = rand(6, 12);
-          this.scaleSlow = rand(0.0015, 0.0028);
-          this.scaleMid  = rand(0.004,  0.008);
-          this.scaleFast = rand(0.012,  0.022);
-          this.tSlow = rand(0.12, 0.22);
-          this.tMid  = rand(0.5,  1.0);
-          this.tFast = rand(1.2,  2.4);
-          this.sinFreq = rand(0.004, 0.010);
-          this.sinAmp  = rand(8, 18);
-          this.sinPhase= rand(0,Math.PI*2);
+        let params = {
+            seed: 12345,
+            branchFrequency: 0.003,
+            streamSpeed: 1.5,
+            waveAmplitude: 20,
+            waveFrequency: 0.03,
+            noiseScale: 0.005,
+            branchAngle: 25,
+            colorPalette: ['#40e0d0', '#00ced1', '#5fd3d3']
+        };
+
+        let defaultParams = {...params};
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // P5.JS LIFE STREAMS ALGORITHM
+        // ═══════════════════════════════════════════════════════════════════════
+
+        let streams = [];
+        let time = 0;
+        let clickRipples = [];
+
+        function setup() {
+            let canvas = createCanvas(400, 800);
+            canvas.parent('canvas-container');
+            
+            initializeSystem();
+            
+            document.querySelector('.loading').style.display = 'none';
         }
 
-        // 분기 방향 힌트(부모의 기울기 부호 기준으로 살짝 벌어짐)
-        this.fan = rand(-22, 22);
-      }
+        function initializeSystem() {
+            randomSeed(params.seed);
+            noiseSeed(params.seed);
 
-      ownY(s, t, u){ // u = s - birthS
-        // 느린 곡률 + 드리프트
-        let y = this.startY + this.drift*u + this.curve*u*u;
+            streams = [];
+            clickRipples = [];
+            time = 0;
+            
+            // Create the initial stream starting from the left edge
+            let initialStream = new Stream(20, height / 2, 0, 0);
+            streams.push(initialStream);
 
-        // 다중 옥타브 노이즈 (시간에 따라 이동)
-        const slow = fbm1D(s + t*this.tSlow*120, this.seed, this.scaleSlow, 3, 0.55, 2.02) * this.ampSlow;
-        const mid  = fbm1D(s + t*this.tMid *120, this.seed+17, this.scaleMid,  3, 0.55, 2.02) * this.ampMid;
-        const fast = fbm1D(s + t*this.tFast*120, this.seed+33, this.scaleFast, 3, 0.55, 2.02) * this.ampFast;
-        y += slow + mid + fast;
-
-        // (옵션) braid 모드: 사인 결 추가
-        if(this.mood==='braid'){
-          y += Math.sin(s*this.sinFreq + this.sinPhase + t*this.tMid)*this.sinAmp;
+            background(255);
         }
 
-        // 클릭 리플(전역) – 더 강하게
-        const ripple = rippleEnergy * Math.sin(s*RIPPLE_S - t*RIPPLE_T);
-        y += ripple;
+        function draw() {
+            // Clear background completely for clean look
+            background(255);
 
-        // 약한 중심 복원력(산란 방지)
-        const center = H*0.5;
-        const pull = (y-center)*0.00075;
-        y -= pull * u * 0.02;
+            time += 0.1;
 
-        return y;
-      }
+            // Update and draw all streams
+            for (let i = streams.length - 1; i >= 0; i--) {
+                let stream = streams[i];
+                stream.update();
+                stream.display();
 
-      yAt(s, t){
-        const u = s - this.birthS;
-        if (u <= 0) return null;
+                // Check for branching
+                if (stream.shouldBranch()) {
+                    let newStream = stream.branch();
+                    streams.push(newStream);
+                }
 
-        // 분리 구간: 부모와 ownY를 섞어 Y-형 분기
-        if(this.parent && u < this.blendLen){
-          const k = smoothstep(u / this.blendLen); // 0→1
-          const yp = this.parent.yAt(s, t);        // 부모의 같은 s에서의 y
-          // 부모가 아직 존재하지 않으면(창 밖 등) ownY로 대체
-          const yParent = (typeof yp === 'number') ? yp : this.startY;
-          const yOwn = this.ownY(s, t, u) + (this.fan * (1-k)); // 초반 살짝 벌어지는 느낌
-          return lerp(yParent, yOwn, k);
-        }
-        return this.ownY(s, t, u);
-      }
-    }
+                // Remove dead streams (especially those that went off the left edge)
+                if (stream.isDead()) {
+                    streams.splice(i, 1);
+                }
+            }
 
-    // ====== Branch list ======
-    let branches = [];
-    function createRoot(){
-      branches = [];
-      branches.push(new Branch({
-        birthS: 0,
-        startY: H*0.5,
-        lineW: 1.0,
-        parent: null,
-        blendLen: 0
-      }));
-    }
-    createRoot();
-
-    function derivativeY(branch, s, t){
-      // 근사 도함수로 분기 방향 추정
-      const ds = 12;
-      const y1 = branch.yAt(s-ds, t);
-      const y2 = branch.yAt(s, t);
-      if(y1==null || y2==null) return 0;
-      return (y2 - y1) / ds;
-    }
-
-    function spawnChild(s0, parent){
-      const y0 = parent.yAt(s0, now);
-      if(typeof y0 !== 'number') return;
-      const child = new Branch({
-        birthS: s0,
-        startY: clamp(y0 + rand(-10,10), MARGIN, H-MARGIN),
-        parent: parent,
-        lineW: clamp(parent.lineW * rand(0.85, 1.15), THIN_MIN, THIN_MAX),
-        blendLen: rand(60, 140),
-      });
-
-      // 부모 기울기 따라 벌어지는 방향 약간 보정
-      const dy = derivativeY(parent, s0, now);
-      child.drift += Math.sign(dy||1) * rand(0.006, 0.018);
-
-      branches.push(child);
-    }
-
-    function maybeSpawnChildren(dt){
-      const boost = 1 + branchBoostEnergy * CLICK_BRANCH_BOOST;
-      let p = BASE_BRANCH_RATE * boost;
-
-      // 가지 과밀 시 완만히 억제
-      const softness = 1 / (1 + Math.max(0, branches.length - 110)*0.08);
-
-      // 화면 안쪽 40~80%에서 분기하여 "보이는 곳"에서 갈라지도록
-      for(let k=0;k<3;k++){
-        if(Math.random() < p * softness * dt * 60){
-          const candidates = branches.filter(b => (b.birthS < offsetS + W*0.95) && (b.birthS > offsetS - W*0.25));
-          if(!candidates.length) continue;
-          const parent = candidates[randInt(0, candidates.length-1)];
-          const s0 = clamp(lerp(offsetS + W*0.40, offsetS + W*0.80, Math.random()), parent.birthS + 20, offsetS + W*0.92);
-          spawnChild(s0, parent);
-        }
-      }
-    }
-
-    // ====== Interaction ======
-    window.addEventListener('click', () => {
-      rippleEnergy += 22;         // 요동 크게
-      branchBoostEnergy += 0.6;   // 분기 강화
-      // 보이는 곳에서 즉시 몇 개 더 갈라지게
-      const alive = branches.filter(b => b.birthS < offsetS + W);
-      if(alive.length){
-        const n = randInt(3,6);
-        for(let i=0;i<n;i++){
-          const parent = alive[randInt(0, alive.length-1)];
-          const s0 = clamp(lerp(offsetS + W*0.35, offsetS + W*0.78, Math.random()), parent.birthS + 20, offsetS + W*0.9);
-          spawnChild(s0, parent);
-        }
-      }
-    }, {passive:true});
-
-    // ====== Animation ======
-    function frame(){
-      now = performance.now()/1000;
-      const dt = Math.max(0.001, now - last); last = now;
-
-      if (matchMedia('(prefers-reduced-motion: reduce)').matches){
-        offsetS += (speed*0.6) * dt;
-        rippleEnergy *= (RIPPLE_DECAY + 0.01);
-      } else {
-        offsetS += speed * dt;
-        rippleEnergy *= RIPPLE_DECAY;
-      }
-      branchBoostEnergy *= 0.96;
-
-      // 배경
-      ctx.fillStyle = '#fff';
-      ctx.fillRect(0,0,W,H);
-
-      // 분기
-      maybeSpawnChildren(dt);
-
-      // 오래된 가지 정리
-      const minS = offsetS - W*1.6;
-      branches = branches.filter(b => (b.birthS < offsetS + W*2.0) && (b.birthS > minS));
-
-      // 그리기
-      for(const br of branches){
-        const sStart = Math.max(br.birthS, offsetS);
-        const sEnd   = offsetS + W;
-        if(sStart >= sEnd) continue;
-
-        ctx.beginPath();
-        let started=false, xPrev=0, yPrev=0;
-
-        for(let s=sStart; s<=sEnd; s+=DX){
-          const x = toScreenX(s);
-          const y = br.yAt(s, now);
-          if(y==null || y<MARGIN || y>H-MARGIN){
-            started=false;
-            continue;
-          }
-          if(!started){
-            ctx.moveTo(x,y); started=true;
-          } else {
-            // 짧은 세그먼트를 찍어 그려서 시간 그라디언트 효과가 더 분명
-            ctx.lineTo(x,y);
-          }
-          xPrev=x; yPrev=y;
+            // Update and draw click ripples
+            for (let i = clickRipples.length - 1; i >= 0; i--) {
+                let ripple = clickRipples[i];
+                ripple.update();
+                ripple.display();
+                
+                if (ripple.isFinished()) {
+                    clickRipples.splice(i, 1);
+                }
+            }
         }
 
-        // 시간 그라디언트 + 가지 고유 투명도
-        ctx.strokeStyle = timeGradient;
-        ctx.globalAlpha = br.baseAlpha;
-        ctx.lineWidth = br.lineW;
-        ctx.stroke();
-        ctx.globalAlpha = 1.0;
-      }
+        function mousePressed() {
+            // Check if click is on canvas
+            if (mouseX >= 0 && mouseX <= width && mouseY >= 0 && mouseY <= height) {
+                // Create a ripple effect
+                clickRipples.push(new ClickRipple(mouseX, mouseY));
 
-      requestAnimationFrame(frame);
-    }
-    requestAnimationFrame(frame);
+                // Find nearby streams and create branches
+                for (let stream of streams) {
+                    let d = dist(mouseX, mouseY, stream.x, stream.y);
+                    if (d < 150 && stream.age > 10) {
+                        // Create a branch toward the click
+                        let angleToClick = atan2(mouseY - stream.y, mouseX - stream.x);
+                        let newStream = stream.branchToward(angleToClick);
+                        streams.push(newStream);
 
-    // 리사이즈 시 루트만 재선언해 레이아웃 재정렬
-    let resizeTimer=null;
-    window.addEventListener('resize', () => {
-      clearTimeout(resizeTimer);
-      resizeTimer=setTimeout(()=>{
-        const keepOffset = offsetS;
-        createRoot();
-        offsetS = keepOffset;
-        timeGradient = makeTimeGradient();
-      }, 120);
-    });
-  })();
-  </script>
+                        // Add ripple effect to the stream
+                        stream.rippleAmplitude = 2.0;
+                    }
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // STREAM CLASS
+        // ═══════════════════════════════════════════════════════════════════════
+
+        class Stream {
+            constructor(x, y, angle, generation) {
+                this.x = x;
+                this.y = y;
+                this.angle = angle;
+                this.generation = generation;
+                this.age = 0;
+                this.maxAge = 800 - generation * 50;
+                this.history = [];
+                this.historyLength = 50;
+                
+                // Wave properties
+                this.wavePhase = random(TWO_PI);
+                this.waveOffset = random(-10, 10);
+                
+                // Color based on generation
+                this.colorIndex = generation % params.colorPalette.length;
+                this.rippleAmplitude = 1.0;
+                
+                // Store initial position
+                this.history.push({x: x, y: y, alpha: 1.0});
+            }
+
+            update() {
+                this.age++;
+                
+                // Decay ripple amplitude
+                this.rippleAmplitude = lerp(this.rippleAmplitude, 1.0, 0.05);
+
+                // Calculate movement with noise and wave
+                let noiseVal = noise(this.x * params.noiseScale, this.y * params.noiseScale, time * 0.1);
+                // Map noise to a limited angle range (mostly rightward)
+                let noiseAngle = map(noiseVal, 0, 1, -PI/3, PI/3);
+                
+                // Wave motion
+                let wave = sin(this.age * params.waveFrequency + this.wavePhase) * params.waveAmplitude;
+                wave *= this.rippleAmplitude;
+                
+                // Combine noise angle with base angle, but constrain to rightward direction
+                this.angle = lerp(this.angle, noiseAngle, 0.1);
+                // Constrain angle to keep moving generally rightward (-PI/2 to PI/2)
+                this.angle = constrain(this.angle, -PI/2 + 0.3, PI/2 - 0.3);
+                
+                // Move forward with wave perpendicular to direction
+                let perpAngle = this.angle + HALF_PI;
+                this.x += cos(this.angle) * params.streamSpeed + cos(perpAngle) * wave * 0.1;
+                this.y += sin(this.angle) * params.streamSpeed + sin(perpAngle) * wave * 0.1;
+
+                // Add to history
+                let alpha = map(this.age, 0, this.maxAge, 1.0, 0.3);
+                this.history.push({x: this.x, y: this.y, alpha: alpha});
+                
+                if (this.history.length > this.historyLength) {
+                    this.history.shift();
+                }
+            }
+
+            display() {
+                if (this.history.length < 2) return;
+
+                // Get color
+                let col = color(params.colorPalette[this.colorIndex]);
+                
+                // Draw the stream with varying thickness and alpha
+                noFill();
+                for (let i = 1; i < this.history.length; i++) {
+                    let curr = this.history[i];
+                    let prev = this.history[i - 1];
+                    
+                    let alpha = map(i, 0, this.history.length, 50, 150) * curr.alpha;
+                    let thickness = map(i, 0, this.history.length, 1, 3);
+                    
+                    stroke(red(col), green(col), blue(col), alpha);
+                    strokeWeight(thickness);
+                    line(prev.x, prev.y, curr.x, curr.y);
+                }
+            }
+
+            shouldBranch() {
+                // Random branching based on frequency
+                if (this.age < 20) return false;
+                if (this.generation > 4) return false;
+                
+                return random() < params.branchFrequency;
+            }
+
+            branch() {
+                // Create a branch at an angle, but keep it rightward
+                let branchAngleOffset = radians(params.branchAngle) * (random() > 0.5 ? 1 : -1);
+                let newAngle = this.angle + branchAngleOffset + random(-0.3, 0.3);
+                // Constrain to rightward direction
+                newAngle = constrain(newAngle, -PI/2 + 0.3, PI/2 - 0.3);
+                
+                return new Stream(this.x, this.y, newAngle, this.generation + 1);
+            }
+
+            branchToward(targetAngle) {
+                // Create a branch that tends toward a specific angle
+                let newAngle = lerp(this.angle, targetAngle, 0.5) + random(-0.5, 0.5);
+                // Still constrain to mostly rightward
+                newAngle = constrain(newAngle, -PI/2 + 0.2, PI/2 - 0.2);
+                return new Stream(this.x, this.y, newAngle, this.generation + 1);
+            }
+
+            isDead() {
+                // Remove streams that go off screen (especially left edge)
+                // or reach max age
+                return this.age > this.maxAge || 
+                       this.x < -50 ||  // Left edge - remove sooner
+                       this.x > width + 100 || 
+                       this.y < -100 || 
+                       this.y > height + 100;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // CLICK RIPPLE CLASS
+        // ═══════════════════════════════════════════════════════════════════════
+
+        class ClickRipple {
+            constructor(x, y) {
+                this.x = x;
+                this.y = y;
+                this.radius = 0;
+                this.maxRadius = 100;
+                this.alpha = 255;
+            }
+
+            update() {
+                this.radius += 3;
+                this.alpha = map(this.radius, 0, this.maxRadius, 255, 0);
+            }
+
+            display() {
+                noFill();
+                stroke(100, 200, 200, this.alpha * 0.5);
+                strokeWeight(2);
+                circle(this.x, this.y, this.radius * 2);
+            }
+
+            isFinished() {
+                return this.radius >= this.maxRadius;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // UI CONTROL HANDLERS
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function updateParam(paramName, value) {
+            params[paramName] = parseFloat(value);
+            document.getElementById(paramName + '-value').textContent = value;
+        }
+
+        function updateColor(colorId, value) {
+            let index = parseInt(colorId.replace('color', '')) - 1;
+            params.colorPalette[index] = value;
+            document.getElementById(colorId + '-value').textContent = value;
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════
+        // SEED CONTROL FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════════════
+
+        function updateSeedDisplay() {
+            document.getElementById('seed-input').value = params.seed;
+        }
+
+        function updateSeed() {
+            let input = document.getElementById('seed-input');
+            let newSeed = parseInt(input.value);
+            if (newSeed && newSeed > 0) {
+                params.seed = newSeed;
+                initializeSystem();
+            } else {
+                updateSeedDisplay();
+            }
+        }
+
+        function previousSeed() {
+            params.seed = Math.max(1, params.seed - 1);
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function nextSeed() {
+            params.seed = params.seed + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function randomSeedAndUpdate() {
+            params.seed = Math.floor(Math.random() * 999999) + 1;
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        function resetParameters() {
+            params = {...defaultParams};
+            
+            // Update UI elements
+            document.getElementById('branchFrequency').value = params.branchFrequency;
+            document.getElementById('branchFrequency-value').textContent = params.branchFrequency;
+            document.getElementById('streamSpeed').value = params.streamSpeed;
+            document.getElementById('streamSpeed-value').textContent = params.streamSpeed;
+            document.getElementById('waveAmplitude').value = params.waveAmplitude;
+            document.getElementById('waveAmplitude-value').textContent = params.waveAmplitude;
+            document.getElementById('waveFrequency').value = params.waveFrequency;
+            document.getElementById('waveFrequency-value').textContent = params.waveFrequency;
+            document.getElementById('noiseScale').value = params.noiseScale;
+            document.getElementById('noiseScale-value').textContent = params.noiseScale;
+            document.getElementById('branchAngle').value = params.branchAngle;
+            document.getElementById('branchAngle-value').textContent = params.branchAngle;
+            
+            // Reset colors
+            document.getElementById('color1').value = params.colorPalette[0];
+            document.getElementById('color1-value').textContent = params.colorPalette[0];
+            document.getElementById('color2').value = params.colorPalette[1];
+            document.getElementById('color2-value').textContent = params.colorPalette[1];
+            document.getElementById('color3').value = params.colorPalette[2];
+            document.getElementById('color3-value').textContent = params.colorPalette[2];
+            
+            updateSeedDisplay();
+            initializeSystem();
+        }
+
+        window.addEventListener('load', function() {
+            updateSeedDisplay();
+        });
+    </script>
 </body>
 </html>
