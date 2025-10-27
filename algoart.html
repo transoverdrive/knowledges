@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
-  <title>Algorithmic Stream of Choices</title>
+  <title>Algorithmic Stream of Choices – Branching</title>
   <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
   <style>
     :root { color-scheme: light only; }
@@ -16,295 +16,373 @@
     canvas { display: block; }
     .hud {
       position: fixed; inset: 0 auto auto 0;
-      margin: 16px 0 0 16px;
+      margin: 14px 0 0 14px;
       padding: 8px 10px;
       background: rgba(255,255,255,.85);
       border: 1px solid rgba(0,0,0,.08);
       border-radius: 8px;
       backdrop-filter: blur(6px);
       font-size: 12px; line-height: 1.4;
-      color: #111;
-      user-select: none;
-      pointer-events: none;
+      color: #111; user-select: none; pointer-events: none;
       box-shadow: 0 8px 20px rgba(0,0,0,.06);
     }
-    .hud b { font-weight: 600; }
-    @media (prefers-reduced-motion: reduce) {
-      .hud { display:none; }
-    }
+    .hud b{font-weight:600;}
+    @media (prefers-reduced-motion: reduce) { .hud { display:none; } }
   </style>
 </head>
 <body>
   <canvas id="c"></canvas>
   <div class="hud">
     <div><b>Algorithmic Stream of Choices</b></div>
-    <div>Click: more branching + ripple</div>
-    <div>Resize: responsive</div>
+    <div>Click: more branching + stronger ripple</div>
   </div>
 
   <script>
   (() => {
-    // ====== Parameters you can tune ======
-    const FLOW_DIR =  1;  // +1: 왼쪽→오른쪽(과거가 왼쪽으로 사라짐) / -1: 오른쪽→왼쪽
-    const BASE_SPEED = 80; // px/sec, 스트림 진행 속도
-    const DX = 2;          // 샘플 간격(px) — 낮출수록 곡선이 더 매끈하지만 연산량 증가
-    const BASE_BRANCH_PROB = 0.00085; // 프레임당 분기 확률 스케일(낮을수록 느리게 분화)
-    const CLICK_BRANCH_BOOST = 10;    // 클릭 시 분기 강화 배수(감쇠됨)
-    const RIPPLE_DECAY = 0.985;       // 클릭 리플 감쇠율(프레임당)
-    const RIPPLE_FREQ_S = 0.05;       // 리플의 공간 주파수(스트림 축 기준)
-    const RIPPLE_FREQ_T = 3.0;        // 리플의 시간 주파수
-    const MARGIN = 24;                // 위/아래 여백
+    // ====== Tunables ======
+    const FLOW_DIR = 1;        // +1: 왼→오 (과거가 왼쪽으로 사라짐)
+    const BASE_SPEED = 90;     // px/sec
+    const DX = 1.6;            // 샘플 간격(px) — 작을수록 더 매끈(연산량↑)
+    const BASE_BRANCH_RATE = 0.0012; // 분기 기본률(프레임당 스케일)
+    const CLICK_BRANCH_BOOST = 12;   // 클릭 시 분기 강화 배수
+    const RIPPLE_DECAY = 0.983;      // 클릭 리플 감쇠
+    const RIPPLE_S = 0.07;           // 리플 공간 주파수(스트림 s축)
+    const RIPPLE_T = 3.6;            // 리플 시간 주파수
+    const MARGIN = 20;               // 상하 여백
 
-    // 선 스타일
-    const THIN_MIN = 0.6;
-    const THIN_MAX = 1.2;
-    const ALPHA_MIN = 0.30;
-    const ALPHA_MAX = 0.75;
+    // 스타일
+    const THIN_MIN = 0.65, THIN_MAX = 1.4;
 
-    // ====== Canvas & DPR ======
+    // ====== Canvas ======
     const canvas = document.getElementById('c');
     const ctx = canvas.getContext('2d', { alpha: false, desynchronized: true });
+    let W=0, H=0, DPR=1, timeGradient=null;
 
-    let W = 0, H = 0, DPR = 1;
-    function resize() {
-      DPR = Math.max(1, Math.floor(window.devicePixelRatio || 1));
+    function makeTimeGradient(){
+      const g = ctx.createLinearGradient(0,0,W,0);
+      // 왼쪽(과거) 아주 옅게 → 오른쪽(현재/미래) 진하게
+      g.addColorStop(0.00, 'rgba(0,0,0,0.05)');
+      g.addColorStop(0.40, 'rgba(0,0,0,0.25)');
+      g.addColorStop(0.80, 'rgba(0,0,0,0.55)');
+      g.addColorStop(1.00, 'rgba(0,0,0,0.90)');
+      return g;
+    }
+
+    function resize(){
+      DPR = Math.max(1, Math.floor(window.devicePixelRatio||1));
       W = canvas.clientWidth = window.innerWidth;
       H = canvas.clientHeight = window.innerHeight;
-      canvas.width = W * DPR;
-      canvas.height = H * DPR;
-      ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-      ctx.lineCap = 'round';
-      ctx.lineJoin = 'round';
+      canvas.width = W * DPR; canvas.height = H * DPR;
+      ctx.setTransform(DPR,0,0,DPR,0,0);
+      ctx.lineCap='round'; ctx.lineJoin='round';
+      timeGradient = makeTimeGradient();
     }
-    window.addEventListener('resize', resize, { passive: true });
+    window.addEventListener('resize', resize, {passive:true});
     resize();
 
-    // ====== Utilities ======
-    const rand = (a=0,b=1)=> a + Math.random()*(b-a);
-    const randInt = (a,b)=> (a + Math.floor(Math.random()*(b-a+1)));
-    const lerp = (a,b,t)=> a + (b-a)*t;
-    const clamp = (v,min,max)=> Math.max(min, Math.min(max, v));
-    const smoothstep = (t)=> t*t*(3 - 2*t);
+    // ====== Utils & Noise ======
+    const rand = (a=0,b=1)=>a+Math.random()*(b-a);
+    const randInt=(a,b)=>a+Math.floor(Math.random()*(b-a+1));
+    const clamp=(v,mi,ma)=>Math.max(mi,Math.min(ma,v));
+    const lerp=(a,b,t)=>a+(b-a)*t;
+    const smoothstep=t=>t*t*(3-2*t);
 
-    // Simple seeded hash/grad for 1D gradient noise
-    function hash(n) {
-      // From number -> 32-bit pseudorandom
-      n = (n<<13) ^ n;
-      return (1.0 - ((n*(n*n*15731 + 789221) + 1376312589) & 0x7fffffff)/1073741824.0);
+    function hash(n){
+      n=(n<<13)^n;
+      return (1.0-((n*(n*n*15731+789221)+1376312589)&0x7fffffff)/1073741824.0);
     }
-    function grad(i, seed) {
-      // repeatable in [-1,1]
-      return hash(i*374761393 + seed*668265263) * 1; // already in [-1,1]
+    function grad(i,seed){ return hash(i*374761393 + seed*668265263); }
+    function noise1D(x, seed=1337, scale=1){
+      const xf = x*scale;
+      const i0 = Math.floor(xf), f = xf - i0;
+      const g0 = grad(i0,seed), g1 = grad(i0+1,seed);
+      const n0 = g0 * f, n1 = g1 * (f - 1.0);
+      return lerp(n0,n1,smoothstep(f)); // [-~0.5, ~0.5]
     }
-    function noise1D(x, seed=1337, scale=1) {
-      // 1D gradient noise with smoothstep
-      const xf = x * scale;
-      const i0 = Math.floor(xf);
-      const f = xf - i0;
-      const g0 = grad(i0, seed);
-      const g1 = grad(i0+1, seed);
-      // linear gradients at cell edges
-      const n0 = g0 * f;
-      const n1 = g1 * (f - 1.0);
-      return lerp(n0, n1, smoothstep(f));
-    }
-
-    // ====== Branch data model ======
-    let now = performance.now()/1000;
-    let offsetS = 0;                      // 보이는 창의 왼쪽(또는 오른쪽) 경계가 가리키는 "절대 스트림 s"
-    let speed = BASE_SPEED;
-    let rippleEnergy = 0;                 // 클릭 때 증가, 프레임마다 감쇠
-    let branchBoostEnergy = 0;            // 클릭 때 증가, 분기 확률 강화용(감쇠)
-
-    function toScreenX(s) {
-      // 절대 s -> 화면 x
-      // FLOW_DIR==+1: s==offsetS -> x=0 / s==offsetS+W -> x=W
-      // FLOW_DIR==-1: 반대
-      return FLOW_DIR === 1 ? (s - offsetS) : (W - (s - offsetS));
-    }
-
-    class Branch {
-      constructor(opts) {
-        this.birthS   = opts.birthS;                  // 이 분기가 시작된 절대 s
-        this.startY   = opts.startY;                  // 탄생 시 y
-        this.drift    = opts.drift ?? rand(-0.035, 0.035); // s에 따른 서서히 벌어짐(기울기)
-        this.amp      = opts.amp   ?? rand(10, 28);   // 출렁임 진폭
-        this.scale    = opts.scale ?? rand(0.0018, 0.0045); // 노이즈 스케일(공간)
-        this.seed     = randInt(1, 1e9);
-        this.lineW    = opts.lineW ?? rand(THIN_MIN, THIN_MAX);
-        this.alpha    = opts.alpha ?? rand(ALPHA_MIN, ALPHA_MAX);
-        this.parent   = opts.parent ?? null;
-        this.hueShift = opts.hueShift ?? rand(-6, 6); // 미세 명암차
-        // 유효성: 화면을 한 번도 스친 적 없는 아주 오래된 분기는 그리기 생략 가능
+    function fbm1D(x, seed, baseScale, oct=3, gain=0.5, lac=2.02){
+      let amp=1, sc=baseScale, sum=0, norm=0;
+      for(let i=0;i<oct;i++){
+        sum += amp * noise1D(x, seed+i*101, sc);
+        norm += amp; amp*=gain; sc*=lac;
       }
-      yAt(s, t) {
-        // 노이즈 + 리플 + 서서히 벌어짐
-        const u = s - this.birthS;
-        const base = this.startY + this.drift * u;
-        const wavy = this.amp * noise1D((s + t*0.35), this.seed, this.scale);
-        const ripple = rippleEnergy * Math.sin(s*RIPPLE_FREQ_S - t*RIPPLE_FREQ_T);
-        let y = base + wavy + ripple;
+      return sum/(norm||1);
+    }
 
-        // 화면 경계 안쪽으로 부드럽게 당기는 약한 탄성
+    // ====== Global state ======
+    let now = performance.now()/1000;
+    let last = now;
+    let offsetS = 0;
+    let speed = BASE_SPEED;
+    let rippleEnergy = 0;
+    let branchBoostEnergy = 0;
+
+    function toScreenX(s){
+      return FLOW_DIR===1 ? (s - offsetS) : (W - (s - offsetS));
+    }
+
+    // ====== Branch class (with true branching blend) ======
+    class Branch {
+      constructor(opts){
+        this.birthS = opts.birthS;
+        this.startY = opts.startY;
+        this.parent = opts.parent ?? null;
+
+        // 분리 전 부모와 함께 달리는 길이(px)
+        this.blendLen = opts.blendLen ?? rand(60, 140);
+
+        // 곡률/드리프트
+        this.drift = rand(-0.028, 0.028);
+        this.curve = rand(-0.00005, 0.00005); // 아주 느린 포물선성
+
+        // 라인 스타일
+        this.lineW = clamp((opts.lineW ?? rand(THIN_MIN, THIN_MAX)), THIN_MIN, THIN_MAX);
+        this.baseAlpha = rand(0.65, 1.0);
+
+        // 고유 패턴(무드) 설정
+        this.seed = randInt(1,1e9);
+        this.mood = ['meander','tremor','swell','braid'][randInt(0,3)];
+
+        // 각 무드에 따른 옥타브/주파수/진폭/시간속도
+        if(this.mood==='meander'){
+          this.ampSlow = rand(18, 35);
+          this.ampMid  = rand(8, 18);
+          this.ampFast = rand(2, 8);
+          this.scaleSlow = rand(0.0012, 0.0025);
+          this.scaleMid  = rand(0.0035, 0.006);
+          this.scaleFast = rand(0.009,  0.018);
+          this.tSlow = rand(0.10, 0.22);
+          this.tMid  = rand(0.4,  0.8);
+          this.tFast = rand(0.9,  1.8);
+        } else if(this.mood==='tremor'){
+          this.ampSlow = rand(10, 18);
+          this.ampMid  = rand(12, 24);
+          this.ampFast = rand(10, 18);
+          this.scaleSlow = rand(0.0015, 0.003);
+          this.scaleMid  = rand(0.006,  0.012);
+          this.scaleFast = rand(0.018,  0.03);
+          this.tSlow = rand(0.15, 0.3);
+          this.tMid  = rand(0.8,  1.4);
+          this.tFast = rand(1.8,  3.2);
+        } else if(this.mood==='swell'){
+          this.ampSlow = rand(28, 48);
+          this.ampMid  = rand(5, 12);
+          this.ampFast = rand(1,  5);
+          this.scaleSlow = rand(0.0008, 0.0016);
+          this.scaleMid  = rand(0.003,  0.006);
+          this.scaleFast = rand(0.012,  0.02);
+          this.tSlow = rand(0.06, 0.14);
+          this.tMid  = rand(0.35, 0.7);
+          this.tFast = rand(0.8,  1.4);
+        } else { // braid : 서로 다른 위상/사인성 섞임
+          this.ampSlow = rand(18, 32);
+          this.ampMid  = rand(8, 18);
+          this.ampFast = rand(6, 12);
+          this.scaleSlow = rand(0.0015, 0.0028);
+          this.scaleMid  = rand(0.004,  0.008);
+          this.scaleFast = rand(0.012,  0.022);
+          this.tSlow = rand(0.12, 0.22);
+          this.tMid  = rand(0.5,  1.0);
+          this.tFast = rand(1.2,  2.4);
+          this.sinFreq = rand(0.004, 0.010);
+          this.sinAmp  = rand(8, 18);
+          this.sinPhase= rand(0,Math.PI*2);
+        }
+
+        // 분기 방향 힌트(부모의 기울기 부호 기준으로 살짝 벌어짐)
+        this.fan = rand(-22, 22);
+      }
+
+      ownY(s, t, u){ // u = s - birthS
+        // 느린 곡률 + 드리프트
+        let y = this.startY + this.drift*u + this.curve*u*u;
+
+        // 다중 옥타브 노이즈 (시간에 따라 이동)
+        const slow = fbm1D(s + t*this.tSlow*120, this.seed, this.scaleSlow, 3, 0.55, 2.02) * this.ampSlow;
+        const mid  = fbm1D(s + t*this.tMid *120, this.seed+17, this.scaleMid,  3, 0.55, 2.02) * this.ampMid;
+        const fast = fbm1D(s + t*this.tFast*120, this.seed+33, this.scaleFast, 3, 0.55, 2.02) * this.ampFast;
+        y += slow + mid + fast;
+
+        // (옵션) braid 모드: 사인 결 추가
+        if(this.mood==='braid'){
+          y += Math.sin(s*this.sinFreq + this.sinPhase + t*this.tMid)*this.sinAmp;
+        }
+
+        // 클릭 리플(전역) – 더 강하게
+        const ripple = rippleEnergy * Math.sin(s*RIPPLE_S - t*RIPPLE_T);
+        y += ripple;
+
+        // 약한 중심 복원력(산란 방지)
         const center = H*0.5;
-        const pull = (y - center) * 0.0009 * (1 + 0.2*Math.sin(t*0.7));
+        const pull = (y-center)*0.00075;
         y -= pull * u * 0.02;
 
         return y;
       }
-      strokeStyle() {
-        // 거의 블랙, 미세한 차이
-        const c = 10 + this.hueShift; // 0=블랙, 100=화이트(명도)
-        const a = clamp(this.alpha, 0.12, 0.9);
-        return `rgba(0,0,0,${a})`;
+
+      yAt(s, t){
+        const u = s - this.birthS;
+        if (u <= 0) return null;
+
+        // 분리 구간: 부모와 ownY를 섞어 Y-형 분기
+        if(this.parent && u < this.blendLen){
+          const k = smoothstep(u / this.blendLen); // 0→1
+          const yp = this.parent.yAt(s, t);        // 부모의 같은 s에서의 y
+          // 부모가 아직 존재하지 않으면(창 밖 등) ownY로 대체
+          const yParent = (typeof yp === 'number') ? yp : this.startY;
+          const yOwn = this.ownY(s, t, u) + (this.fan * (1-k)); // 초반 살짝 벌어지는 느낌
+          return lerp(yParent, yOwn, k);
+        }
+        return this.ownY(s, t, u);
       }
     }
 
-    /** Branch 리스트: 처음 1개에서 시작 */
+    // ====== Branch list ======
     let branches = [];
-    function createRoot() {
+    function createRoot(){
       branches = [];
       branches.push(new Branch({
         birthS: 0,
-        startY: H * 0.5,
-        drift: rand(-0.01, 0.01),
-        amp: 18,
-        scale: 0.0025,
+        startY: H*0.5,
         lineW: 1.0,
-        alpha: 0.55,
+        parent: null,
+        blendLen: 0
       }));
     }
     createRoot();
 
-    function spawnChild(nowS, parent) {
-      // 현재 보이는 오른쪽 60~95% 구간에서 부드럽게 분기
-      const s0 = clamp(lerp(offsetS + W*0.6, offsetS + W*0.95, Math.random()), parent.birthS + 20, offsetS + W);
+    function derivativeY(branch, s, t){
+      // 근사 도함수로 분기 방향 추정
+      const ds = 12;
+      const y1 = branch.yAt(s-ds, t);
+      const y2 = branch.yAt(s, t);
+      if(y1==null || y2==null) return 0;
+      return (y2 - y1) / ds;
+    }
+
+    function spawnChild(s0, parent){
       const y0 = parent.yAt(s0, now);
-      const delta = rand(-28, 28); // 부모로부터 벌어지는 초기 편차
+      if(typeof y0 !== 'number') return;
       const child = new Branch({
         birthS: s0,
-        startY: clamp(y0 + delta, MARGIN, H - MARGIN),
-        drift: parent.drift + rand(-0.02, 0.02),
-        amp: clamp(parent.amp * rand(0.85, 1.15), 8, 36),
-        scale: clamp(parent.scale * rand(0.85, 1.15), 0.0015, 0.0055),
-        lineW: clamp(parent.lineW * rand(0.8, 1.2), THIN_MIN, THIN_MAX),
-        alpha: clamp(parent.alpha * rand(0.9, 1.05), ALPHA_MIN, ALPHA_MAX),
+        startY: clamp(y0 + rand(-10,10), MARGIN, H-MARGIN),
         parent: parent,
-        hueShift: parent.hueShift + rand(-4, 4),
+        lineW: clamp(parent.lineW * rand(0.85, 1.15), THIN_MIN, THIN_MAX),
+        blendLen: rand(60, 140),
       });
+
+      // 부모 기울기 따라 벌어지는 방향 약간 보정
+      const dy = derivativeY(parent, s0, now);
+      child.drift += Math.sign(dy||1) * rand(0.006, 0.018);
+
       branches.push(child);
     }
 
-    function maybeSpawnChildren(dt) {
-      // 분기 확률: 기본 + 클릭 부스팅(지수감쇠)
+    function maybeSpawnChildren(dt){
       const boost = 1 + branchBoostEnergy * CLICK_BRANCH_BOOST;
-      const p = BASE_BRANCH_PROB * boost;
-      // 가지 수가 너무 많아지면 확률 완만히 낮추기(퍼포먼스/미학용)
-      const softness = 1 / (1 + Math.max(0, branches.length - 80)*0.08);
+      let p = BASE_BRANCH_RATE * boost;
 
-      // 프레임마다 약간의 확률로 여러 개 시도
-      const tries = 3;
-      for (let k=0; k<tries; k++) {
-        if (Math.random() < p * softness * dt * 60) {
-          // 최근(오른쪽)에서 화면상 존재감 있는 가지를 부모로 선택
-          const alive = branches.filter(b => b.birthS < offsetS + W && b.birthS > offsetS - W*0.5);
-          if (!alive.length) continue;
-          const parent = alive[randInt(0, alive.length-1)];
-          spawnChild(offsetS + W, parent);
+      // 가지 과밀 시 완만히 억제
+      const softness = 1 / (1 + Math.max(0, branches.length - 110)*0.08);
+
+      // 화면 안쪽 40~80%에서 분기하여 "보이는 곳"에서 갈라지도록
+      for(let k=0;k<3;k++){
+        if(Math.random() < p * softness * dt * 60){
+          const candidates = branches.filter(b => (b.birthS < offsetS + W*0.95) && (b.birthS > offsetS - W*0.25));
+          if(!candidates.length) continue;
+          const parent = candidates[randInt(0, candidates.length-1)];
+          const s0 = clamp(lerp(offsetS + W*0.40, offsetS + W*0.80, Math.random()), parent.birthS + 20, offsetS + W*0.92);
+          spawnChild(s0, parent);
         }
       }
     }
 
     // ====== Interaction ======
     window.addEventListener('click', () => {
-      rippleEnergy += 10;                 // 출렁 강화
-      branchBoostEnergy += 0.6;           // 분기 강화
-      // 즉각적인 자식 몇 개 생성
+      rippleEnergy += 22;         // 요동 크게
+      branchBoostEnergy += 0.6;   // 분기 강화
+      // 보이는 곳에서 즉시 몇 개 더 갈라지게
       const alive = branches.filter(b => b.birthS < offsetS + W);
-      if (alive.length) {
-        const n = randInt(2,5);
-        for (let i=0;i<n;i++) {
+      if(alive.length){
+        const n = randInt(3,6);
+        for(let i=0;i<n;i++){
           const parent = alive[randInt(0, alive.length-1)];
-          spawnChild(offsetS + W, parent);
+          const s0 = clamp(lerp(offsetS + W*0.35, offsetS + W*0.78, Math.random()), parent.birthS + 20, offsetS + W*0.9);
+          spawnChild(s0, parent);
         }
       }
-    }, { passive: true });
+    }, {passive:true});
 
-    // ====== Animation loop ======
-    let last = performance.now()/1000;
-    function frame() {
+    // ====== Animation ======
+    function frame(){
       now = performance.now()/1000;
-      let dt = now - last;
-      last = now;
+      const dt = Math.max(0.001, now - last); last = now;
 
-      // 접근성: 리듀스 모션이면 속도/리플 감소
-      if (matchMedia('(prefers-reduced-motion: reduce)').matches) {
-        dt *= 0.5;
+      if (matchMedia('(prefers-reduced-motion: reduce)').matches){
+        offsetS += (speed*0.6) * dt;
+        rippleEnergy *= (RIPPLE_DECAY + 0.01);
+      } else {
+        offsetS += speed * dt;
+        rippleEnergy *= RIPPLE_DECAY;
       }
-
-      // 진행 방향에 맞게 offsetS 증가(시간의 창을 오른쪽으로 밀어줌)
-      offsetS += speed * dt;
-
-      // 감쇠
-      rippleEnergy *= RIPPLE_DECAY;
       branchBoostEnergy *= 0.96;
 
-      // 캔버스 초기화(흰 배경)
+      // 배경
       ctx.fillStyle = '#fff';
-      ctx.fillRect(0, 0, W, H);
+      ctx.fillRect(0,0,W,H);
 
-      // 분기 생성 시도
+      // 분기
       maybeSpawnChildren(dt);
 
-      // 오래된(완전히 왼쪽으로 벗어난) 가지 제거
-      const minS = offsetS - W*1.5;
-      branches = branches.filter(b => (b.birthS < offsetS + W*2) && (b.birthS > minS));
+      // 오래된 가지 정리
+      const minS = offsetS - W*1.6;
+      branches = branches.filter(b => (b.birthS < offsetS + W*2.0) && (b.birthS > minS));
 
-      // 가지 그리기
-      for (const br of branches) {
-        // 화면에 닿지 않는다면 스킵
+      // 그리기
+      for(const br of branches){
         const sStart = Math.max(br.birthS, offsetS);
-        const sEnd = offsetS + W;
-
-        if (sStart >= sEnd) continue;
+        const sEnd   = offsetS + W;
+        if(sStart >= sEnd) continue;
 
         ctx.beginPath();
-        let started = false;
+        let started=false, xPrev=0, yPrev=0;
 
-        for (let s = sStart; s <= sEnd; s += DX) {
+        for(let s=sStart; s<=sEnd; s+=DX){
           const x = toScreenX(s);
           const y = br.yAt(s, now);
-
-          // y가 위/아래 여백 넘어가면 스킵(끊어 그리기)
-          if (y < MARGIN || y > H - MARGIN) {
-            started = false;
+          if(y==null || y<MARGIN || y>H-MARGIN){
+            started=false;
             continue;
           }
-          if (!started) {
-            ctx.moveTo(x, y);
-            started = true;
+          if(!started){
+            ctx.moveTo(x,y); started=true;
           } else {
-            ctx.lineTo(x, y);
+            // 짧은 세그먼트를 찍어 그려서 시간 그라디언트 효과가 더 분명
+            ctx.lineTo(x,y);
           }
+          xPrev=x; yPrev=y;
         }
 
-        ctx.strokeStyle = br.strokeStyle();
+        // 시간 그라디언트 + 가지 고유 투명도
+        ctx.strokeStyle = timeGradient;
+        ctx.globalAlpha = br.baseAlpha;
         ctx.lineWidth = br.lineW;
         ctx.stroke();
+        ctx.globalAlpha = 1.0;
       }
 
       requestAnimationFrame(frame);
     }
     requestAnimationFrame(frame);
 
-    // 초기화 타이밍: 크기 바뀌면 루트 재시작(미세한 레이아웃 교정)
-    let resizeTimer = null;
+    // 리사이즈 시 루트만 재선언해 레이아웃 재정렬
+    let resizeTimer=null;
     window.addEventListener('resize', () => {
       clearTimeout(resizeTimer);
-      resizeTimer = setTimeout(() => {
+      resizeTimer=setTimeout(()=>{
         const keepOffset = offsetS;
         createRoot();
-        offsetS = keepOffset; // 흐름의 시간감 유지
+        offsetS = keepOffset;
+        timeGradient = makeTimeGradient();
       }, 120);
     });
   })();
